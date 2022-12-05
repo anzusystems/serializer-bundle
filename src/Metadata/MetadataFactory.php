@@ -6,6 +6,7 @@ namespace AnzuSystems\SerializerBundle\Metadata;
 
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use Doctrine\ORM\EntityManagerInterface;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
@@ -16,6 +17,11 @@ use Symfony\Component\PropertyInfo\Type;
 
 final class MetadataFactory
 {
+    public function __construct(
+        private readonly ?EntityManagerInterface $entityManager = null,
+    ) {
+    }
+
     /**
      * @param class-string $className
      *
@@ -52,7 +58,7 @@ final class MetadataFactory
             /** @var Serialize $attribute */
             $attribute = $attributes[0]->newInstance();
             $dataName = $attribute->serializedName ?? $property->getName();
-            $metadata[$dataName] = $this->getPropertyMetadata($property, $attribute);
+            $metadata[$dataName] = $this->getPropertyMetadata($reflection, $property, $attribute);
         }
 
         return $metadata;
@@ -109,13 +115,13 @@ final class MetadataFactory
     /**
      * @throws SerializerException
      */
-    private function getPropertyMetadata(ReflectionProperty $property, Serialize $attribute): Metadata
+    private function getPropertyMetadata(ReflectionClass $class, ReflectionProperty $property, Serialize $attribute): Metadata
     {
         $getterPrefix = 'get';
         $propertyType = $property->getType();
         $type = '';
         if ($propertyType instanceof ReflectionNamedType) {
-            $type = $propertyType->getName();
+            $type = $this->inferNamedPropertyTypeForClass($class, $property);
             if (Type::BUILTIN_TYPE_BOOL === $type) {
                 $getterPrefix = 'is';
             }
@@ -149,5 +155,26 @@ final class MetadataFactory
             $attribute->strategy,
             $attribute->persistedName,
         );
+    }
+
+    /**
+     * Infer type for named property.
+     * In case the class where property belongs is Doctrine's entity associated field, use a target entity as the type.
+     */
+    private function inferNamedPropertyTypeForClass(ReflectionClass $class, ReflectionProperty $property): string
+    {
+        $type = $property->getType()->getName();
+        $className = $class->getName();
+        $propertyName = $property->getName();
+        if ($this->entityManager instanceof EntityManagerInterface
+            && $this->entityManager->getMetadataFactory()->hasMetadataFor($className)
+        ) {
+            $classMetadata = $this->entityManager->getClassMetadata($className);
+            if ($classMetadata->hasAssociation($propertyName)) {
+                return $classMetadata->getAssociationMapping($propertyName)['targetEntity'] ?: $type;
+            }
+        }
+
+        return $type;
     }
 }
