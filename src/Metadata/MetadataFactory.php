@@ -121,7 +121,7 @@ final class MetadataFactory
         $propertyType = $property->getType();
         $type = '';
         if ($propertyType instanceof ReflectionNamedType) {
-            $type = $this->inferNamedPropertyTypeForClass($class, $property);
+            $type = $this->inferNamedPropertyTypeForClass($class, $property, $attribute);
             if (Type::BUILTIN_TYPE_BOOL === $type) {
                 $getterPrefix = 'is';
             }
@@ -161,20 +161,28 @@ final class MetadataFactory
      * Infer type for named property.
      * In case the class where property belongs is Doctrine's entity associated field, use a target entity as the type.
      */
-    private function inferNamedPropertyTypeForClass(ReflectionClass $class, ReflectionProperty $property): string
+    private function inferNamedPropertyTypeForClass(ReflectionClass $class, ReflectionProperty $property, Serialize $attribute): string
     {
         $type = $property->getType()->getName();
         $className = $class->getName();
         $propertyName = $property->getName();
-        if ($this->entityManager instanceof EntityManagerInterface
-            && $this->entityManager->getMetadataFactory()->hasMetadataFor($className)
-        ) {
-            $classMetadata = $this->entityManager->getClassMetadata($className);
-            if ($classMetadata->hasAssociation($propertyName)) {
-                return $classMetadata->getAssociationMapping($propertyName)['targetEntity'] ?: $type;
-            }
+        if (false === ($this->entityManager instanceof EntityManagerInterface)) {
+            return $type;
+        }
+        if (false === $this->entityManager->getMetadataFactory()->hasMetadataFor($className)) {
+            return $type;
+        }
+        $classMetadata = $this->entityManager->getClassMetadata($className);
+        if (false === $classMetadata->hasAssociation($propertyName)) {
+            return $type;
+        }
+        $targetEntityType = $classMetadata->getAssociationMapping($propertyName)['targetEntity'];
+        if (is_a($type, 'Doctrine\Common\Collections\Collection', true)) {
+            $attribute->type = $targetEntityType;
+
+            return $type;
         }
 
-        return $type;
+        return $targetEntityType;
     }
 }
