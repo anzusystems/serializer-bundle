@@ -26,6 +26,7 @@ use Nelmio\ApiDocBundle\ModelDescriber\ModelDescriberInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Reference;
@@ -93,7 +94,8 @@ final class AnzuSystemsSerializerExtension extends Extension
 
         $container->setDefinition(
             MetadataFactory::class,
-            new Definition(MetadataFactory::class)
+            (new Definition(MetadataFactory::class))
+                ->setArgument('$entityManager', new Reference(EntityManagerInterface::class, ContainerInterface::NULL_ON_INVALID_REFERENCE))
         );
 
         $container->setDefinition(
