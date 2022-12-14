@@ -1,11 +1,11 @@
-AnzuSerializer
+AnzuSystems Serializer Bundle by Petit Press a.s. (www.sme.sk)
 ============
 
 ---
 
 A fast & light serializer bundle for symfony.
 
---- 
+---
 ### Install
 
 ```
@@ -55,14 +55,14 @@ To be able to (de)serialize objects, the property (or method) of that object mus
     #[Serialize]
     private DateTimeImmutable $createdAt;
 
-    // Custom date format used by `DateTime`. 
+    // Custom date format used by `DateTime`.
     #[Serialize(type: 'd.m.Y H:i:s')]
     private DateTimeImmutable $createdAtCustomFormat;
 
     // The valueObject must be an instance of `ValueObjectInterface`, to automatically (de)serialize.
     #[Serialize]
     private DummyValueObject $dummyValueObject;
-    
+
     // The enum must be an instance of `EnumInterface`, to automatically (de)serialize.
     #[Serialize]
     private DummyEnum $dummyEnum;
@@ -160,7 +160,7 @@ In case you want always automatically all properties of the before-mentioned typ
     }
 ```
 
-In case you want multiple automatic handlers that can both support the same thing, you can set priority with which the handler will be chosen. 
+In case you want multiple automatic handlers that can both support the same thing, you can set priority with which the handler will be chosen.
 In that case, add the following method (higher priority will be chosen first):
 ```php
 public static function getPriority(): int
@@ -172,7 +172,7 @@ By default, all handlers have priority 0. Except:
 `BasicHandler` has highest priority (10) - this handles simple scalar values, so generally you want it to be first.
 `ObjectHandler` has lowest priority (-1) - this handles nested iterables/objects that no other handler supports.
 
-### Automatically generated API documentation via NelmioApiDocBundle 
+### Automatically generated API documentation via NelmioApiDocBundle
 
 Model describer will be automatically registered if [NelmioApiDocBundle](https://github.com/nelmio/NelmioApiDocBundle) is present.
 Symfony annotations are also supported/reflected in documentation. DocBlock titles are also added automatically as description for properties and methods.
@@ -208,7 +208,7 @@ public function describe(string $property, Metadata $metadata): array
 }
 ```
 
-Check out [Property](https://github.com/zircote/swagger-php/blob/master/src/Attributes/Property.php) attribute for a list of supported description configuration options.  
+Check out [Property](https://github.com/zircote/swagger-php/blob/master/src/Attributes/Property.php) attribute for a list of supported description configuration options.
 On top of that, you may want to add the `NESTED_CLASS` key to replace the description with a whole another classes' description:
 ```php
 $description[SerializerModelDescriber::NESTED_CLASS] = 'App\Entity\User';
