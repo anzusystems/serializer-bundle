@@ -239,11 +239,10 @@ public static function getInstance(Post $decorated): self
 }
 ```
 
-- Use `SerializerParamConverter` to convert request body into desired object. Example:
+- Use `SerializeParam` to convert request body into desired object. Example:
 ```php
 #[Route('/topic', name: 'create', methods: [Request::METHOD_POST])]
-#[ParamConverter('topic', converter: AnzuSerializerParamConverter::class)]
-public function create(Topic $topic): JsonResponse
+public function create(#[SerializeParam] Topic $topic): JsonResponse
 {
     return $this->createdResponse(
         $this->topicFacade->create($topic)
