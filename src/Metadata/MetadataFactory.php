@@ -12,10 +12,16 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionProperty;
 use ReflectionUnionType;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\PropertyInfo\Type;
 
 final class MetadataFactory
 {
+    public function __construct(
+        private readonly ParameterBagInterface $parameterBag
+    ) {
+    }
+
     /**
      * @param class-string $className
      *
@@ -101,7 +107,7 @@ final class MetadataFactory
             null,
             null,
             $attribute->handler,
-            $attribute->type,
+            $this->resolveCustomType($attribute),
             $attribute->strategy,
         );
     }
@@ -145,9 +151,18 @@ final class MetadataFactory
             $property->getName(),
             $setter,
             $attribute->handler,
-            $attribute->type,
+            $this->resolveCustomType($attribute),
             $attribute->strategy,
             $attribute->persistedName,
         );
+    }
+
+    private function resolveCustomType(Serialize $attribute): ?string
+    {
+        if ($attribute->type instanceof ContainerParam) {
+            return (string) $this->parameterBag->get($attribute->type->paramName);
+        }
+
+        return $attribute->type;
     }
 }

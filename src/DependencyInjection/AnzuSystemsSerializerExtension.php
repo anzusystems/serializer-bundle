@@ -28,6 +28,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\DependencyInjection\Reference;
 
 final class AnzuSystemsSerializerExtension extends Extension
@@ -93,7 +94,8 @@ final class AnzuSystemsSerializerExtension extends Extension
 
         $container->setDefinition(
             MetadataFactory::class,
-            new Definition(MetadataFactory::class)
+            (new Definition(MetadataFactory::class))
+                ->setArgument('$parameterBag', new Reference(ParameterBagInterface::class))
         );
 
         $container->setDefinition(
