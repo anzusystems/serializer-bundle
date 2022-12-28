@@ -28,11 +28,13 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
-use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
 use Symfony\Component\DependencyInjection\Reference;
 
 final class AnzuSystemsSerializerExtension extends Extension
 {
+    public const SERIALIZER_PARAMETER_BAG_ID = Configuration::ALIAS . '.' . Configuration::CONFIG_PARAMETER_BAG;
+
     /**
      * @throws Exception
      */
@@ -93,9 +95,15 @@ final class AnzuSystemsSerializerExtension extends Extension
         );
 
         $container->setDefinition(
+            self::SERIALIZER_PARAMETER_BAG_ID,
+            (new Definition(ParameterBag::class))
+                ->setArgument('$parameters', $config[Configuration::CONFIG_PARAMETER_BAG])
+        );
+
+        $container->setDefinition(
             MetadataFactory::class,
             (new Definition(MetadataFactory::class))
-                ->setArgument('$parameterBag', new Reference(ParameterBagInterface::class))
+                ->setArgument('$parameterBag', new Reference(self::SERIALIZER_PARAMETER_BAG_ID))
         );
 
         $container->setDefinition(

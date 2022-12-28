@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Metadata;
 
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
+use AnzuSystems\SerializerBundle\DependencyInjection\AnzuSystemsSerializerExtension;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use ReflectionClass;
 use ReflectionException;
@@ -157,10 +158,20 @@ final class MetadataFactory
         );
     }
 
+    /**
+     * @throws SerializerException
+     */
     private function resolveCustomType(Serialize $attribute): ?string
     {
         if ($attribute->type instanceof ContainerParam) {
-            return (string) $this->parameterBag->get($attribute->type->paramName);
+            $paramName = $attribute->type->paramName;
+            if ($this->parameterBag->has($paramName)) {
+                return (string) $this->parameterBag->get($paramName);
+            }
+
+            throw new SerializerException('The parameter `' . $paramName . '` not found in `'
+                . AnzuSystemsSerializerExtension::SERIALIZER_PARAMETER_BAG_ID . '` configuration.'
+            );
         }
 
         return $attribute->type;
