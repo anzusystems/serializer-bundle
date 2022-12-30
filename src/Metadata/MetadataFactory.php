@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Metadata;
 
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
+use AnzuSystems\SerializerBundle\DependencyInjection\AnzuSystemsSerializerExtension;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use ReflectionClass;
 use ReflectionException;
@@ -12,10 +13,16 @@ use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionProperty;
 use ReflectionUnionType;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\PropertyInfo\Type;
 
 final class MetadataFactory
 {
+    public function __construct(
+        private readonly ParameterBagInterface $parameterBag
+    ) {
+    }
+
     /**
      * @param class-string $className
      *
@@ -101,7 +108,7 @@ final class MetadataFactory
             null,
             null,
             $attribute->handler,
-            $attribute->type,
+            $this->resolveCustomType($attribute),
             $attribute->strategy,
         );
     }
@@ -145,9 +152,28 @@ final class MetadataFactory
             $property->getName(),
             $setter,
             $attribute->handler,
-            $attribute->type,
+            $this->resolveCustomType($attribute),
             $attribute->strategy,
             $attribute->persistedName,
         );
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    private function resolveCustomType(Serialize $attribute): ?string
+    {
+        if ($attribute->type instanceof ContainerParam) {
+            $paramName = $attribute->type->paramName;
+            if ($this->parameterBag->has($paramName)) {
+                return (string) $this->parameterBag->get($paramName);
+            }
+
+            throw new SerializerException('The parameter `' . $paramName . '` not found in `'
+                . AnzuSystemsSerializerExtension::SERIALIZER_PARAMETER_BAG_ID . '` configuration.'
+            );
+        }
+
+        return $attribute->type;
     }
 }

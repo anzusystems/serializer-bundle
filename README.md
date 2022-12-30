@@ -74,6 +74,13 @@ To be able to (de)serialize objects, the property (or method) of that object mus
     #[Serialize(type: DummyDto::class)]
     private array $itemsArray;
 
+    // Provide type via container parameter name. Example yaml config:
+    // anzu_systems_serializer:
+    //   parameter_bag:
+    //     AnzuSystems\Contracts\Entity\AbstractUser: App\Entity\User
+    #[Serialize(handler: EntityIdHandler::class, type: new ContainerParam(AbstractUser::class))]
+    protected Collection $users;
+
     // (De)serialize a doctrine entity into/from IDs instead of (de)serializing whole object.
     #[Serialize(handler: EntityIdHandler::class)]
     private User $user;
