@@ -76,8 +76,9 @@ final class EntityIdHandler extends AbstractHandler
 
             return $entities;
         }
-        if (method_exists($metadata->type, 'getId') && (is_int($value) || is_string($value))) {
-            return $this->entityManager->find($metadata->type, $value);
+        $deserializeType = $metadata->customType ?? $metadata->type;
+        if (method_exists($deserializeType, 'getId') && (is_int($value) || is_string($value))) {
+            return $this->entityManager->find($deserializeType, $value);
         }
 
         throw new SerializerException('Unsupported value for ' . self::class . '::' . __FUNCTION__);
