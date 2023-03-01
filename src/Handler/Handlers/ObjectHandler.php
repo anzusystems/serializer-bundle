@@ -11,7 +11,7 @@ use AnzuSystems\SerializerBundle\OpenApi\SerializerModelDescriber;
 use AnzuSystems\SerializerBundle\Service\JsonDeserializer;
 use AnzuSystems\SerializerBundle\Service\JsonSerializer;
 use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ReadableCollection;
 use Symfony\Component\PropertyInfo\Type;
 
 final class ObjectHandler extends AbstractHandler
@@ -52,7 +52,7 @@ final class ObjectHandler extends AbstractHandler
      */
     public function deserialize(mixed $value, Metadata $metadata): object|iterable
     {
-        if (is_a($metadata->type, Collection::class, true)) {
+        if (is_a($metadata->type, ReadableCollection::class, true)) {
             $collection = new ArrayCollection();
             foreach ($value as $key => $item) {
                 $collection->set($key, $this->jsonDeserializer->fromArray($item, $metadata->customType));
@@ -75,7 +75,7 @@ final class ObjectHandler extends AbstractHandler
     public function describe(string $property, Metadata $metadata): array
     {
         $description = parent::describe($property, $metadata);
-        if (is_a($metadata->type, Collection::class, true)
+        if (is_a($metadata->type, ReadableCollection::class, true)
             || Type::BUILTIN_TYPE_ARRAY === $metadata->type) {
             $description['type'] = Type::BUILTIN_TYPE_ARRAY;
             $description['items'] = [];

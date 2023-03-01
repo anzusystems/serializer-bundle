@@ -7,7 +7,7 @@ namespace AnzuSystems\SerializerBundle\Service;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
-use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ReadableCollection;
 use Throwable;
 
 final class JsonDeserializer
@@ -38,7 +38,7 @@ final class JsonDeserializer
     public function fromArray(array $data, string $className, ?iterable $iterable = null): object|iterable
     {
         if (is_iterable($iterable)) {
-            if ($iterable instanceof Collection) {
+            if ($iterable instanceof ReadableCollection) {
                 foreach ($data as $key => $item) {
                     $iterable->set($key, $this->fromArray($item, $className));
                 }

@@ -9,7 +9,7 @@ use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Helper\SerializerHelper;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ReadableCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use ReflectionException;
 use ReflectionMethod;
@@ -39,7 +39,7 @@ final class EntityIdHandler extends AbstractHandler
 
             return array_values($ids);
         }
-        if ($value instanceof Collection) {
+        if ($value instanceof ReadableCollection) {
             $ids = $value->map($toIdFunction);
             if (Serialize::KEYS_VALUES === $metadata->strategy) {
                 if ($ids->isEmpty()) {
@@ -70,7 +70,7 @@ final class EntityIdHandler extends AbstractHandler
                     $entities[] = $entity;
                 }
             }
-            if (is_a($metadata->type, Collection::class, true)) {
+            if (is_a($metadata->type, ReadableCollection::class, true)) {
                 return new ArrayCollection($entities);
             }
 
@@ -87,7 +87,7 @@ final class EntityIdHandler extends AbstractHandler
     public function describe(string $property, Metadata $metadata): array
     {
         $description = parent::describe($property, $metadata);
-        if (is_a($metadata->type, Collection::class, true)
+        if (is_a($metadata->type, ReadableCollection::class, true)
             || Type::BUILTIN_TYPE_ARRAY === $metadata->type) {
             $description['type'] = Type::BUILTIN_TYPE_ARRAY;
             $description['title'] = SerializerHelper::getClassBaseName($metadata->customType) . ' IDs';
