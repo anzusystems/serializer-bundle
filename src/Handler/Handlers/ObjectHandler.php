@@ -78,7 +78,7 @@ final class ObjectHandler extends AbstractHandler
         if (is_a($metadata->type, Collection::class, true)
             || Type::BUILTIN_TYPE_ARRAY === $metadata->type) {
             $description['type'] = Type::BUILTIN_TYPE_ARRAY;
-            $description['items'] = [];
+            $description['items'] = null;
             if (Serialize::KEYS_VALUES === $metadata->strategy) {
                 $description['type'] = Type::BUILTIN_TYPE_OBJECT;
                 $description['title'] = 'Custom key-value data.';
