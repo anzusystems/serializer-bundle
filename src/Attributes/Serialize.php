@@ -11,6 +11,7 @@ use Attribute;
 final class Serialize
 {
     public const KEYS_VALUES = 'kv';
+    public const DISCRIMINATOR_COLUMN = 'discriminator';
 
     public function __construct(
         public ?string $serializedName = null,
@@ -18,6 +19,7 @@ final class Serialize
         public null|string|ContainerParam $type = null,
         public ?string $strategy = null,
         public ?string $persistedName = null,
+        public ?array $discriminatorMap = null,
     ) {
     }
 }

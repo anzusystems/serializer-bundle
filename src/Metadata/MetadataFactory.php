@@ -65,6 +65,9 @@ final class MetadataFactory
         return $metadata;
     }
 
+    /**
+     * @throws SerializerException
+     */
     private function buildMethodMetadata(ReflectionClass $reflection): array
     {
         $metadata = [];
@@ -84,6 +87,9 @@ final class MetadataFactory
         return $metadata;
     }
 
+    /**
+     * @throws SerializerException
+     */
     private function getMethodMetadata(ReflectionMethod $method, Serialize $attribute): Metadata
     {
         $type = '';
@@ -155,6 +161,7 @@ final class MetadataFactory
             $this->resolveCustomType($attribute),
             $attribute->strategy,
             $attribute->persistedName,
+            $attribute->discriminatorMap,
         );
     }
 
