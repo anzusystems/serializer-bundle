@@ -67,12 +67,16 @@ To be able to (de)serialize objects, the property (or method) of that object mus
     #[Serialize]
     private DummyEnum $dummyEnum;
 
-    // Type must be provided for iterables in order to determine how to deserialize its items.
+    // Type (or discriminator map see below) must be provided for iterables in order to determine how to deserialize its items.
     #[Serialize(type: DummyDto::class)]
     private Collection $items;
 
     #[Serialize(type: DummyDto::class)]
     private array $itemsArray;
+
+    // Override type for deserialization based on provided "discriminator" field in json.
+    #[Serialize(discriminatorMap: ['person' => Person::class, 'machine' => Machine::class])]
+    private Collection $items;
 
     // Provide type via container parameter name. Example yaml config:
     // anzu_systems_serializer:

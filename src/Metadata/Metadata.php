@@ -9,6 +9,7 @@ final class Metadata
     /**
      * @param class-string|string $type
      * @param class-string|string|null $customType
+     * @param array<string, class-string>|null $discriminatorMap
      */
     public function __construct(
         public string $type,
@@ -20,6 +21,7 @@ final class Metadata
         public ?string $customType = null,
         public ?string $strategy = null,
         public ?string $persistedName = null,
+        public ?array $discriminatorMap = null,
     ) {
     }
 }
