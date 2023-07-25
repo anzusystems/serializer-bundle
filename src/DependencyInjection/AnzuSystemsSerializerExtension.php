@@ -13,6 +13,7 @@ use AnzuSystems\SerializerBundle\Handler\Handlers\EntityIdHandler;
 use AnzuSystems\SerializerBundle\Handler\Handlers\EnumHandler;
 use AnzuSystems\SerializerBundle\Handler\Handlers\HandlerInterface;
 use AnzuSystems\SerializerBundle\Handler\Handlers\ObjectHandler;
+use AnzuSystems\SerializerBundle\Handler\Handlers\UuidHandler;
 use AnzuSystems\SerializerBundle\Metadata\MetadataFactory;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use AnzuSystems\SerializerBundle\OpenApi\SerializerModelDescriber;
@@ -33,6 +34,7 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Controller\ValueResolverInterface;
+use Symfony\Component\Uid\Uuid;
 
 final class AnzuSystemsSerializerExtension extends Extension
 {
@@ -67,6 +69,13 @@ final class AnzuSystemsSerializerExtension extends Extension
             (new Definition(EnumHandler::class))
                 ->addTag(AnzuSystemsSerializerBundle::TAG_SERIALIZER_HANDLER)
         );
+        if (class_exists(Uuid::class)) {
+            $container->setDefinition(
+                UuidHandler::class,
+                (new Definition(UuidHandler::class))
+                    ->addTag(AnzuSystemsSerializerBundle::TAG_SERIALIZER_HANDLER)
+            );
+        }
         $container->setDefinition(
             ObjectHandler::class,
             (new Definition(ObjectHandler::class))
