@@ -66,6 +66,10 @@ To be able to (de)serialize objects, the property (or method) of that object mus
     // The enum must be an instance of `EnumInterface`, to automatically (de)serialize.
     #[Serialize]
     private DummyEnum $dummyEnum;
+    
+    // Must be an instance of Symfony\Component\Uid\Uuid, to automatically (de)serialize.
+    #[Serialize]
+    private Uuid $docId;
 
     // Type (or discriminator map see below) must be provided for iterables in order to determine how to deserialize its items.
     #[Serialize(type: DummyDto::class)]
@@ -105,6 +109,7 @@ To be able to (de)serialize objects, the property (or method) of that object mus
     - `DateTimeHandler` (date format configurable via settings)
     - `EnumHandler` (conversion between string and `EnumInterface`)
     - `ObjectHandler` (conversion of whole objects, i.e. embeds)
+    - `UuidHandler` (conversion of Symfony Uuids)
 - Custom handlers:
     - `EntityIdHandler` (conversion of IDs into entities and back)
     - `ArrayStringHandler` (CSV into array: `'1,2,3'` or `'a, b,c'` to `[1, 2, 3]` or `['a', 'b', 'c']`)

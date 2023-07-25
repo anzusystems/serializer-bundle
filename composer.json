@@ -17,7 +17,8 @@
     },
     "require-dev": {
         "nelmio/api-doc-bundle": "^4.9",
-        "doctrine/orm": "^2.13"
+        "doctrine/orm": "^2.13",
+        "symfony/uid": "^6.3"
     },
     "suggest": {
         "doctrine/orm": "Enable EntityIdHandler."
