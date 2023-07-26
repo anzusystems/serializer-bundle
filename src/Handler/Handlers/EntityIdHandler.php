@@ -41,6 +41,9 @@ final class EntityIdHandler extends AbstractHandler
         }
         if ($value instanceof Collection) {
             $ids = $value->map($toIdFunction);
+            if ($metadata->orderBy) {
+                $ids = $this->getOrderedIDs($ids->getValues(), $metadata);
+            }
             if (Serialize::KEYS_VALUES === $metadata->strategy) {
                 if ($ids->isEmpty()) {
                     return new \stdClass();
@@ -55,6 +58,20 @@ final class EntityIdHandler extends AbstractHandler
         }
 
         throw new SerializerException('Unsupported value for ' . self::class . '::' . __FUNCTION__);
+    }
+
+    private function getOrderedIDs(array $ids, Metadata $metadata): Collection
+    {
+        $dqb = $this->entityManager->getRepository($metadata->customType)->createQueryBuilder('entity');
+        $dqb
+            ->select('entity.id')
+            ->where('entity.id IN (:ids)')
+            ->setParameter('ids', $ids)
+        ;
+        foreach ($metadata->orderBy as $field => $direction) {
+            $dqb->addOrderBy('entity.' . $field, $direction);
+        }
+        return new ArrayCollection($dqb->getQuery()->getSingleColumnResult());
     }
 
     public function deserialize(mixed $value, Metadata $metadata): mixed
