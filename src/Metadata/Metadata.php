@@ -10,6 +10,7 @@ final class Metadata
      * @param class-string|string $type
      * @param class-string|string|null $customType
      * @param array<string, class-string>|null $discriminatorMap
+     * @param null|array<string, 'ASC'|'DESC'> $orderBy
      */
     public function __construct(
         public string $type,
@@ -22,6 +23,7 @@ final class Metadata
         public ?string $strategy = null,
         public ?string $persistedName = null,
         public ?array $discriminatorMap = null,
+        public ?array $orderBy = null,
     ) {
     }
 }

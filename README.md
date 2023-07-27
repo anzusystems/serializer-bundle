@@ -78,6 +78,10 @@ To be able to (de)serialize objects, the property (or method) of that object mus
     #[Serialize(type: DummyDto::class)]
     private array $itemsArray;
 
+    // Serialize collection of entities as IDs ordered by position.
+    #[Serialize(handler: EntityIdHandler::class, type: Author::class, orderBy: ['position' => Criteria::ASC])]
+    protected Collection $authors;
+
     // Override type for deserialization based on provided "discriminator" field in json.
     #[Serialize(discriminatorMap: ['person' => Person::class, 'machine' => Machine::class])]
     private Collection $items;

@@ -116,6 +116,7 @@ final class MetadataFactory
             $attribute->handler,
             $this->resolveCustomType($attribute),
             $attribute->strategy,
+            orderBy: $attribute->orderBy
         );
     }
 
@@ -162,6 +163,7 @@ final class MetadataFactory
             $attribute->strategy,
             $attribute->persistedName,
             $attribute->discriminatorMap,
+            orderBy: $attribute->orderBy
         );
     }
 
