@@ -14,6 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use ReflectionException;
 use ReflectionMethod;
 use Symfony\Component\PropertyInfo\Type;
+use Symfony\Component\Uid\Uuid;
 
 final class EntityIdHandler extends AbstractHandler
 {
@@ -27,7 +28,7 @@ final class EntityIdHandler extends AbstractHandler
         if (null === $value) {
             return null;
         }
-        $toIdFunction = fn (object $item): null|int|string => $item->getId();
+        $toIdFunction = fn (object $item): null|int|string|object => $item->getId();
         if (is_array($value)) {
             $ids = array_map($toIdFunction, $value);
             if (Serialize::KEYS_VALUES === $metadata->strategy) {
@@ -62,6 +63,15 @@ final class EntityIdHandler extends AbstractHandler
 
     private function getOrderedIDs(array $ids, Metadata $metadata): Collection
     {
+        $uuids = false;
+        $ids = array_map(function (null|int|string|object $id) use (&$uuids) {
+            if (class_exists(Uuid::class) && $id instanceof Uuid) {
+                $uuids = true;
+
+                return $id->toBinary();
+            }
+            return $id;
+        }, $ids);
         $dqb = $this->entityManager->getRepository($metadata->customType)->createQueryBuilder('entity');
         $dqb
             ->select('entity.id')
@@ -71,7 +81,14 @@ final class EntityIdHandler extends AbstractHandler
         foreach ($metadata->orderBy as $field => $direction) {
             $dqb->addOrderBy('entity.' . $field, $direction);
         }
-        return new ArrayCollection($dqb->getQuery()->getSingleColumnResult());
+        $resultIds = array_map(function (null|int|string $id) use ($uuids) {
+            if (class_exists(Uuid::class) && $uuids) {
+                return Uuid::fromString($id);
+            }
+            return $id;
+        }, $dqb->getQuery()->getSingleColumnResult());
+
+        return new ArrayCollection($resultIds);
     }
 
     public function deserialize(mixed $value, Metadata $metadata): mixed
