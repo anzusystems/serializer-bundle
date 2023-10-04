@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Tests\TestApp\Entity;
 
+use AnzuSystems\SerializerBundle\Attributes\Serialize;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -14,12 +15,15 @@ class Example
 {
     #[ORM\Column(type: Types::INTEGER)]
     #[ORM\Id]
-    private int $id = 1;
+    #[Serialize]
+    private int $id = 0;
 
     #[ORM\Column(type: Types::STRING)]
-    private string $name = 'Example name';
+    #[Serialize]
+    private string $name = '';
 
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
+    #[Serialize]
     private DateTimeImmutable $createdAt;
 
     public function __construct()
