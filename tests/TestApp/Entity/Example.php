@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Tests\TestApp\Entity;
 
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleBackedEnum;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleUnitEnum;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -25,6 +27,14 @@ class Example
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     #[Serialize]
     private DateTimeImmutable $createdAt;
+
+    #[ORM\Column(enumType: ExampleBackedEnum::class)]
+    #[Serialize]
+    private ExampleBackedEnum $place = ExampleBackedEnum::First;
+
+    #[ORM\Column(enumType: ExampleUnitEnum::class)]
+    #[Serialize]
+    private ExampleUnitEnum $color = ExampleUnitEnum::Red;
 
     public function __construct()
     {
@@ -63,6 +73,30 @@ class Example
     public function setCreatedAt(DateTimeImmutable $createdAt): self
     {
         $this->createdAt = $createdAt;
+
+        return $this;
+    }
+
+    public function getPlace(): ExampleBackedEnum
+    {
+        return $this->place;
+    }
+
+    public function setPlace(ExampleBackedEnum $place): self
+    {
+        $this->place = $place;
+
+        return $this;
+    }
+
+    public function getColor(): ExampleUnitEnum
+    {
+        return $this->color;
+    }
+
+    public function setColor(ExampleUnitEnum $color): self
+    {
+        $this->color = $color;
 
         return $this;
     }

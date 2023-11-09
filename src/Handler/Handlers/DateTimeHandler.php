@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
+use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use DateTime;
 use DateTimeImmutable;
@@ -43,9 +44,17 @@ final class DateTimeHandler extends AbstractHandler
         }
         /** @var class-string<DateTime|DateTimeImmutable> $dateClass */
         $dateClass = $metadata->type;
-        $date = $dateClass::createFromFormat($metadata->customType ?? $this->serializerDateFormat, $value);
+        $format = $metadata->customType ?? $this->serializerDateFormat;
+        $date = $dateClass::createFromFormat($format, $value);
+        if ($date) {
+            return $date->setTimezone(new DateTimeZone('UTC'));
+        }
 
-        return $date->setTimezone(new DateTimeZone('UTC'));
+        throw new DeserializationException(sprintf(
+            'Unable to create DateTime from format "%s" with value "%s".',
+            $format,
+            $value
+        ));
     }
 
     public static function supportsDescribe(string $property, Metadata $metadata): bool

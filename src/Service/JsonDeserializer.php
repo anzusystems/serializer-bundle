@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Service;
 
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use Doctrine\Common\Collections\Collection;
+use \JsonException;
 use Throwable;
 
 final class JsonDeserializer
@@ -25,7 +27,14 @@ final class JsonDeserializer
      */
     public function deserialize(string $data, string $className, ?iterable $iterable = null): object|iterable
     {
-        $dataArray = json_decode($data, true);
+        try {
+            $dataArray = json_decode($data, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException $jsonException) {
+            throw new DeserializationException(
+                'Cannot decode JSON string provided.',
+                previous: $jsonException
+            );
+        }
 
         return $this->fromArray($dataArray, $className, $iterable);
     }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use BackedEnum;
 use IntBackedEnum;
@@ -42,6 +43,11 @@ final class EnumHandler extends AbstractHandler
             if ($enumValue instanceof BackedEnum) {
                 return $enumValue;
             }
+            throw new DeserializationException(sprintf(
+                'Cannot deserialize value "%s" into a BackedEnum. Possible options are: "%s".',
+                $value,
+                implode(', ', array_column($metadata->type::cases(), 'value'))
+            ));
         }
         if (is_a($metadata->type, UnitEnum::class, true)) {
             foreach ($metadata->type::cases() as $case) {
@@ -49,6 +55,11 @@ final class EnumHandler extends AbstractHandler
                     return $case;
                 }
             }
+            throw new DeserializationException(sprintf(
+                'Cannot deserialize value "%s" into a UnitEnum. Possible options are: "%s".',
+                $value,
+                implode(', ', array_column($metadata->type::cases(), 'name'))
+            ));
         }
 
         throw new SerializerException(sprintf('Unsupported value for %s::%s', self::class, __METHOD__));
