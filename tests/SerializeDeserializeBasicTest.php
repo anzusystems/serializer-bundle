@@ -11,7 +11,7 @@ use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleUnitEnum;
 use DateTimeImmutable;
 use UnitEnum;
 
-final class AnzuAppTest extends AbstractTestCase
+final class SerializeDeserializeBasicTest extends AbstractTestCase
 {
     /**
      * @throws SerializerException
