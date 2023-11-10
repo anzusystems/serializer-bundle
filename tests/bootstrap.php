@@ -28,7 +28,7 @@ $input = new ArrayInput([
 ]);
 $app->run($input, $output);
 
-# Database drop
+// Database drop
 $input = new ArrayInput([
     'command' => 'doctrine:database:drop',
     '--force' => true,
