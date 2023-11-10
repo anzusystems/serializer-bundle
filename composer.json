@@ -18,7 +18,10 @@
     "require-dev": {
         "nelmio/api-doc-bundle": "^4.9",
         "doctrine/orm": "^2.13",
-        "symfony/uid": "^6.3"
+        "symfony/uid": "^6.3",
+        "symfony/test-pack": "^1.1",
+        "doctrine/doctrine-bundle": "^2.10",
+        "symfony/dotenv": "^6.3"
     },
     "suggest": {
         "doctrine/orm": "Enable EntityIdHandler."
@@ -26,6 +29,12 @@
     "autoload": {
         "psr-4": {
             "AnzuSystems\\SerializerBundle\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AnzuSystems\\SerializerBundle\\Tests\\": "tests",
+            "AnzuSystems\\SerializerBundle\\Tests\\TestApp\\": "tests/TestApp"
         }
     }
 }
