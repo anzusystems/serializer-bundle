@@ -20,7 +20,7 @@ $app->setAutoExit(false);
 
 $output = new ConsoleOutput();
 
-# Clear cache
+// Clear cache
 $input = new ArrayInput([
     'command' => 'cache:clear',
     '--no-warmup' => true,
