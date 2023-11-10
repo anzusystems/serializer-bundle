@@ -58,7 +58,7 @@ final class EnumHandler extends AbstractHandler
             throw new DeserializationException(sprintf(
                 'Cannot deserialize value "%s" into a UnitEnum. Possible options are: "%s".',
                 $value,
-                implode(', ', array_column($metadata->type::cases(), 'name'))
+                implode('", "', array_column($metadata->type::cases(), 'name'))
             ));
         }
 
