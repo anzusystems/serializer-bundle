@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use Symfony\Component\Dotenv\Dotenv;
 use AnzuSystems\SerializerBundle\Tests\AnzuTestKernel;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Dotenv\Dotenv;
 
 require dirname(__DIR__).'/vendor/autoload.php';
 
@@ -26,7 +26,6 @@ $input = new ArrayInput([
     '--no-warmup' => true,
     '--env' => getenv('APP_ENV'),
 ]);
-//$input->setInteractive(false);
 $app->run($input, $output);
 
 # Database drop
@@ -35,14 +34,12 @@ $input = new ArrayInput([
     '--force' => true,
     '--if-exists' => true,
 ]);
-//$input->setInteractive(false);
 $app->run($input, $output);
 
 # Database create
 $input = new ArrayInput([
     'command' => 'doctrine:database:create',
 ]);
-//$input->setInteractive(false);
 $app->run($input, $output);
 
 # Update schema
@@ -51,5 +48,4 @@ $input = new ArrayInput([
     '--force' => true,
     '--complete' => true,
 ]);
-//$input->setInteractive(false);
 $app->run($input, $output);
