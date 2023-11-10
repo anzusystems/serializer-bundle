@@ -9,7 +9,7 @@ use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use Doctrine\Common\Collections\Collection;
-use \JsonException;
+use JsonException;
 use Throwable;
 
 final class JsonDeserializer
