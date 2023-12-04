@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Service;
 
-use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Exception\DeserializationException;
+use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use Doctrine\Common\Collections\Collection;
@@ -89,6 +89,7 @@ final class JsonDeserializer
             if (null === $value && false === $metadata->isNullable) {
                 continue;
             }
+
             try {
                 $object->{$metadata->setter}($value);
             } catch (Throwable) {

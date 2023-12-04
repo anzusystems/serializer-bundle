@@ -25,7 +25,7 @@ final class SerializerHandlerCompilerPass implements CompilerPassInterface
          * @param class-string<HandlerInterface> $a
          * @param class-string<HandlerInterface> $b
          */
-        $sortFn = fn (string $a, string $b):int => $b::getPriority() <=> $a::getPriority();
+        $sortFn = fn (string $a, string $b): int => $b::getPriority() <=> $a::getPriority();
         usort($handlers, $sortFn);
 
         $handlerReferences = [];

@@ -36,13 +36,13 @@ abstract class AbstractHandler implements HandlerInterface
             'property' => $property,
             'type' => SerializerHelper::getOaFriendlyType($metadata->type),
         ];
-        if (is_null($metadata->setter)) {
+        if (null === $metadata->setter) {
             $description['readOnly'] = true;
         }
         if ($metadata->isNullable) {
             $description['nullable'] = true;
         }
-        if ($metadata->type === Type::BUILTIN_TYPE_ARRAY) {
+        if (Type::BUILTIN_TYPE_ARRAY === $metadata->type) {
             $itemType = [];
             if ($metadata->customType) {
                 $itemType = ['type' => $metadata->customType];

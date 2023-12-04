@@ -36,6 +36,7 @@ final class EntityIdHandler extends AbstractHandler
                 if (empty($ids)) {
                     return new \stdClass();
                 }
+
                 return $ids;
             }
 
@@ -50,6 +51,7 @@ final class EntityIdHandler extends AbstractHandler
                 if ($ids->isEmpty()) {
                     return new \stdClass();
                 }
+
                 return $ids->toArray();
             }
 
@@ -60,39 +62,6 @@ final class EntityIdHandler extends AbstractHandler
         }
 
         throw new SerializerException('Unsupported value for ' . self::class . '::' . __FUNCTION__);
-    }
-
-    private function getOrderedIDs(array $ids, Metadata $metadata): Collection
-    {
-        $uuids = false;
-        $ids = array_map(function (null|int|string|object $id) use (&$uuids) {
-            if (class_exists(Uuid::class) && $id instanceof Uuid) {
-                $uuids = true;
-
-                return $id->toBinary();
-            }
-            return $id;
-        }, $ids);
-        /** @psalm-suppress ArgumentTypeCoercion */
-        $dqb = $this->entityManager->getRepository((string) $metadata->customType)->createQueryBuilder('entity');
-        $dqb
-            ->select('entity.id')
-            ->where('entity.id IN (:ids)')
-            ->setParameter('ids', $ids)
-        ;
-        if (null !== $metadata->orderBy) {
-            foreach ($metadata->orderBy as $field => $direction) {
-                $dqb->addOrderBy('entity.'.$field, $direction);
-            }
-        }
-        $resultIds = array_map(function (null|int|string $id) use ($uuids) {
-            if (class_exists(Uuid::class) && $uuids) {
-                return Uuid::fromString((string) $id);
-            }
-            return $id;
-        }, $dqb->getQuery()->getSingleColumnResult());
-
-        return new ArrayCollection($resultIds);
     }
 
     public function deserialize(mixed $value, Metadata $metadata): mixed
@@ -140,6 +109,41 @@ final class EntityIdHandler extends AbstractHandler
         $description['title'] = SerializerHelper::getClassBaseName($metadata->type) . ' ID';
 
         return $description;
+    }
+
+    private function getOrderedIDs(array $ids, Metadata $metadata): Collection
+    {
+        $uuids = false;
+        $ids = array_map(function (null|int|string|object $id) use (&$uuids) {
+            if (class_exists(Uuid::class) && $id instanceof Uuid) {
+                $uuids = true;
+
+                return $id->toBinary();
+            }
+
+            return $id;
+        }, $ids);
+        /** @psalm-suppress ArgumentTypeCoercion */
+        $dqb = $this->entityManager->getRepository((string) $metadata->customType)->createQueryBuilder('entity');
+        $dqb
+            ->select('entity.id')
+            ->where('entity.id IN (:ids)')
+            ->setParameter('ids', $ids)
+        ;
+        if (null !== $metadata->orderBy) {
+            foreach ($metadata->orderBy as $field => $direction) {
+                $dqb->addOrderBy('entity.' . $field, $direction);
+            }
+        }
+        $resultIds = array_map(function (null|int|string $id) use ($uuids) {
+            if (class_exists(Uuid::class) && $uuids) {
+                return Uuid::fromString((string) $id);
+            }
+
+            return $id;
+        }, $dqb->getQuery()->getSingleColumnResult());
+
+        return new ArrayCollection($resultIds);
     }
 
     private function describeReturnType(string $type): string

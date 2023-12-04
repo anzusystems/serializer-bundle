@@ -56,6 +56,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
                 $nestedSchema = $this->describeNested($propertyName, $description[self::NESTED_CLASS]);
                 if ($nestedSchema) {
                     $properties[] = $nestedSchema;
+
                     continue;
                 }
             }
@@ -102,8 +103,10 @@ final class SerializerModelDescriber implements ModelDescriberInterface
                         continue;
                     }
                     $description .= $line;
+
                     continue;
                 }
+
                 break;
             }
             if ($description) {

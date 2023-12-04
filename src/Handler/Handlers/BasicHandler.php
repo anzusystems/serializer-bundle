@@ -33,7 +33,7 @@ final class BasicHandler extends AbstractHandler
 
     public static function supportsDeserialize(mixed $value, string $type): bool
     {
-        return null === $value || in_array($type, BasicHandler::BASIC_TYPES, true);
+        return null === $value || in_array($type, self::BASIC_TYPES, true);
     }
 
     public function deserialize(mixed $value, Metadata $metadata): string|int|bool|null|float
@@ -52,6 +52,6 @@ final class BasicHandler extends AbstractHandler
 
     public static function supportsDescribe(string $property, Metadata $metadata): bool
     {
-        return in_array($metadata->type, BasicHandler::BASIC_TYPES, true);
+        return in_array($metadata->type, self::BASIC_TYPES, true);
     }
 }
