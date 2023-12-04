@@ -103,6 +103,7 @@ final class MetadataFactory
                     continue;
                 }
                 $type = $returnType->getName();
+
                 break;
             }
         }
@@ -140,6 +141,7 @@ final class MetadataFactory
                     continue;
                 }
                 $type = $returnType->getName();
+
                 break;
             }
         }
@@ -179,7 +181,8 @@ final class MetadataFactory
                 return (string) $this->parameterBag->get($paramName);
             }
 
-            throw new SerializerException('The parameter `' . $paramName . '` not found in `'
+            throw new SerializerException(
+                'The parameter `' . $paramName . '` not found in `'
                 . AnzuSystemsSerializerExtension::SERIALIZER_PARAMETER_BAG_ID . '` configuration.'
             );
         }

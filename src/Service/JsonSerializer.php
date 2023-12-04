@@ -47,6 +47,7 @@ final class JsonSerializer
                 if (empty($output)) {
                     return new \stdClass();
                 }
+
                 return $output;
             }
 

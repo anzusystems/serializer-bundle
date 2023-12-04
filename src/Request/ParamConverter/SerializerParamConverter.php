@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Request\ParamConverter;
 
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
-use AnzuSystems\SerializerBundle\Request\ValueResolver\SerializerValueResolver;
 use AnzuSystems\SerializerBundle\Serializer;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
 use Sensio\Bundle\FrameworkExtraBundle\Request\ParamConverter\ParamConverterInterface;
