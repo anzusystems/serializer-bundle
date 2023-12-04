@@ -71,28 +71,37 @@ return static function (ECSConfig $ecsConfig): void {
         DoctrineAnnotationBracesFixer::class => null,
         NotOperatorWithSuccessorSpaceFixer::class => null,
         UselessParenthesesSniff::class => null,
-        PhpdocSeparationFixer::class => null, // some bug with infinity applied checker
+        PhpdocSeparationFixer::class => null,
         MethodChainingIndentationFixer::class => ['DependencyInjection/*Configuration.php'],
         'SlevomatCodingStandard\Sniffs\Whitespaces\DuplicateSpacesSniff.DuplicateDeclareStrictTypesSpaces' => null,
         'SlevomatCodingStandard\Sniffs\Commenting\DisallowCommentAfterCodeSniff.DisallowedCommentAfterCode' => null,
         PhpdocAnnotationWithoutDotFixer::class => null,
-        PhpCsFixer\Fixer\Import\NoUnusedImportsFixer::class => null // bug: removes usages of attributes if attributes are in one line i.e. #[OARequest, OAResponse]
+        PhpCsFixer\Fixer\Import\NoUnusedImportsFixer::class => null,
     ]);
 
-    $ecsConfig->extend(NoSuperfluousPhpdocTagsFixer::class, function (NoSuperfluousPhpdocTagsFixer $noSuperfluousPhpdocTagsFixer) {
-        $noSuperfluousPhpdocTagsFixer->configure(['remove_inheritdoc' => false, 'allow_mixed' => false]);
-        return $noSuperfluousPhpdocTagsFixer;
-    });
+    $ecsConfig->extend(
+        NoSuperfluousPhpdocTagsFixer::class,
+        function (NoSuperfluousPhpdocTagsFixer $noSuperfluousPhpdocTagsFixer) {
+            $noSuperfluousPhpdocTagsFixer->configure(['remove_inheritdoc' => false, 'allow_mixed' => false]);
+
+            return $noSuperfluousPhpdocTagsFixer;
+        }
+    );
 
     $ecsConfig->extend(ClassDefinitionFixer::class, function (ClassDefinitionFixer $classDefinitionFixer) {
         $classDefinitionFixer->configure(['multi_line_extends_each_single_line' => false]);
+
         return $classDefinitionFixer;
     });
 
-    $ecsConfig->extend(ClassAttributesSeparationFixer::class, function (ClassAttributesSeparationFixer $classAttributesSeparationFixer) {
-        $classAttributesSeparationFixer->configure(['elements' => ['method', 'property']]);
-        return $classAttributesSeparationFixer;
-    });
+    $ecsConfig->extend(
+        ClassAttributesSeparationFixer::class,
+        function (ClassAttributesSeparationFixer $classAttributesSeparationFixer) {
+            $classAttributesSeparationFixer->configure(['elements' => ['method', 'property']]);
+
+            return $classAttributesSeparationFixer;
+        }
+    );
 
     $ecsConfig->ruleWithConfiguration(DocCommentSpacingSniff::class, [
         'annotationsGroups' => [
@@ -135,7 +144,10 @@ return static function (ECSConfig $ecsConfig): void {
     $ecsConfig->rule(DoctrineAnnotationSpacesFixer::class);
     $ecsConfig->rule(BlankLineBeforeStatementFixer::class);
 
-    $ecsConfig->ruleWithConfiguration(YodaStyleFixer::class, ['equal' => true, 'identical' => true, 'less_and_greater' => null]);
+    $ecsConfig->ruleWithConfiguration(
+        YodaStyleFixer::class,
+        ['equal' => true, 'identical' => true, 'less_and_greater' => null]
+    );
 
     $ecsConfig->ruleWithConfiguration(ForbiddenFunctionsSniff::class, [
         'forbiddenFunctions' => [
@@ -181,6 +193,7 @@ return static function (ECSConfig $ecsConfig): void {
 
     $ecsConfig->extend(ArraySyntaxFixer::class, function (ArraySyntaxFixer $arraySyntaxFixer) {
         $arraySyntaxFixer->configure(['syntax' => 'short']);
+
         return $arraySyntaxFixer;
     });
 

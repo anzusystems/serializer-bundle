@@ -1,7 +1,6 @@
 # IDE
 .idea/
 .vscode/
-EEEE
 
 # Cache, session files, logs and secure files
 /var
