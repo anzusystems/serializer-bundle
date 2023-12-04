@@ -175,6 +175,7 @@ final class MetadataFactory
         if ($attribute->type instanceof ContainerParam) {
             $paramName = $attribute->type->paramName;
             if ($this->parameterBag->has($paramName)) {
+                /** @psalm-suppress PossiblyInvalidCast */
                 return (string) $this->parameterBag->get($paramName);
             }
 

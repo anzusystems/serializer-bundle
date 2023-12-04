@@ -16,12 +16,16 @@
         "doctrine/common": "^3.3"
     },
     "require-dev": {
-        "nelmio/api-doc-bundle": "^4.9",
-        "doctrine/orm": "^2.13",
-        "symfony/uid": "^6.3",
-        "symfony/test-pack": "^1.1",
         "doctrine/doctrine-bundle": "^2.10",
-        "symfony/dotenv": "^6.3"
+        "doctrine/orm": "^2.13",
+        "nelmio/api-doc-bundle": "^4.9",
+        "sensio/framework-extra-bundle": "^6.2",
+        "slevomat/coding-standard": "^8.14",
+        "symfony/dotenv": "^6.3",
+        "symfony/test-pack": "^1.1",
+        "symfony/uid": "^6.3",
+        "symplify/easy-coding-standard": "^12.0",
+        "vimeo/psalm": "^5.16"
     },
     "suggest": {
         "doctrine/orm": "Enable EntityIdHandler."
@@ -35,6 +39,12 @@
         "psr-4": {
             "AnzuSystems\\SerializerBundle\\Tests\\": "tests",
             "AnzuSystems\\SerializerBundle\\Tests\\TestApp\\": "tests/TestApp"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": false
         }
     }
 }

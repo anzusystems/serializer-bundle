@@ -61,9 +61,10 @@ final class ObjectHandler extends AbstractHandler
     public function deserialize(mixed $value, Metadata $metadata): object|iterable
     {
         if (is_a($metadata->type, Collection::class, true)) {
+            /** @var Collection<int|string, iterable|object> $collection */
             $collection = new ArrayCollection();
             foreach ($value as $key => $item) {
-                $collection->set($key, $this->jsonDeserializer->fromArray($item, $this->getDeserializeCustomType($item, $metadata)));
+                $collection->set($key, $this->jsonDeserializer->fromArray($item, $this->getDeserializeCustomType($item, $metadata) ?? $metadata->type));
             }
 
             return $collection;
@@ -72,15 +73,19 @@ final class ObjectHandler extends AbstractHandler
             return $value;
         }
 
+        /** @psalm-suppress ArgumentTypeCoercion */
         return $this->jsonDeserializer->fromArray($value, $this->getDeserializeCustomType($value, $metadata) ?? $metadata->type);
     }
 
     /**
      * @return class-string|null
+     *
+     * @psalm-suppress LessSpecificReturnStatement
+     * @psalm-suppress MoreSpecificReturnType
      */
     private function getDeserializeCustomType(mixed $item, Metadata $metadata): string|null
     {
-        if ($metadata->discriminatorMap && key_exists(Serialize::DISCRIMINATOR_COLUMN, $item)) {
+        if ($metadata->discriminatorMap && array_key_exists(Serialize::DISCRIMINATOR_COLUMN, $item)) {
             return $metadata->discriminatorMap[
                 $item[Serialize::DISCRIMINATOR_COLUMN]
             ];
