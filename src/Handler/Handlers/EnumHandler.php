@@ -81,10 +81,7 @@ final class EnumHandler extends AbstractHandler
             $enums[] = $enumCase->value;
         }
         $description['enum'] = $enums;
-        $description['type'] = is_subclass_of($enumClass, IntBackedEnum::class)
-            ? Type::BUILTIN_TYPE_INT
-            : Type::BUILTIN_TYPE_STRING
-        ;
+        $description['type'] = Type::BUILTIN_TYPE_STRING;
 
         return $description;
     }

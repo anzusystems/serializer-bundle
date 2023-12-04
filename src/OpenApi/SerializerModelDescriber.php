@@ -63,14 +63,16 @@ final class SerializerModelDescriber implements ModelDescriberInterface
             $property = new Property($description);
 
             // Describe symfony constraints and property docBlock description.
-            if ($metadata->property) {
+            if ($metadata->property && null !== $model->getType()->getClassName()) {
+                /** @psalm-suppress ArgumentTypeCoercion */
                 $propertyReflection = new ReflectionProperty($model->getType()->getClassName(), $metadata->property);
                 $this->symfonyConstraintAnnotationReader->updateProperty($propertyReflection, $property);
                 $this->addDocBlockDescription($propertyReflection, $property);
             }
 
             // Method docBlock description.
-            if (is_null($metadata->setter)) {
+            if (null === $metadata->setter && null !== $model->getType()->getClassName()) {
+                /** @psalm-suppress ArgumentTypeCoercion */
                 $methodReflection = new ReflectionMethod($model->getType()->getClassName(), $metadata->getter);
                 $this->addDocBlockDescription($methodReflection, $property);
             }
@@ -85,7 +87,13 @@ final class SerializerModelDescriber implements ModelDescriberInterface
         $docComment = $reflection->getDocComment();
         if ($docComment) {
             $docComment = explode(PHP_EOL, $docComment);
-            unset($docComment[array_key_first($docComment)], $docComment[array_key_last($docComment)]);
+
+            $firstKey = array_key_first($docComment);
+            $lastKey = array_key_last($docComment);
+            if ($firstKey && $lastKey) {
+                unset($docComment[$firstKey], $docComment[$lastKey]);
+            }
+
             $description = '';
             foreach ($docComment as $line) {
                 $line = trim(ltrim($line, '* '));
@@ -125,7 +133,6 @@ final class SerializerModelDescriber implements ModelDescriberInterface
         if (isset($description['items'][self::NESTED_CLASS])) {
             $nestedItems = new Items(['title' => SerializerHelper::getClassBaseName($description['items'][self::NESTED_CLASS])]);
             $nestedItemsModel = new Model(new Type(Type::BUILTIN_TYPE_OBJECT, class: $description['items'][self::NESTED_CLASS]));
-
 
             if ($this->supports($nestedItemsModel)) {
                 $this->describe($nestedItemsModel, $nestedItems);

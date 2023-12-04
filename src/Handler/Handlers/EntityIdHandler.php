@@ -13,6 +13,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
 use ReflectionException;
 use ReflectionMethod;
+use ReflectionNamedType;
 use Symfony\Component\PropertyInfo\Type;
 use Symfony\Component\Uid\Uuid;
 
@@ -72,18 +73,21 @@ final class EntityIdHandler extends AbstractHandler
             }
             return $id;
         }, $ids);
-        $dqb = $this->entityManager->getRepository($metadata->customType)->createQueryBuilder('entity');
+        /** @psalm-suppress ArgumentTypeCoercion */
+        $dqb = $this->entityManager->getRepository((string) $metadata->customType)->createQueryBuilder('entity');
         $dqb
             ->select('entity.id')
             ->where('entity.id IN (:ids)')
             ->setParameter('ids', $ids)
         ;
-        foreach ($metadata->orderBy as $field => $direction) {
-            $dqb->addOrderBy('entity.' . $field, $direction);
+        if (null !== $metadata->orderBy) {
+            foreach ($metadata->orderBy as $field => $direction) {
+                $dqb->addOrderBy('entity.'.$field, $direction);
+            }
         }
         $resultIds = array_map(function (null|int|string $id) use ($uuids) {
             if (class_exists(Uuid::class) && $uuids) {
-                return Uuid::fromString($id);
+                return Uuid::fromString((string) $id);
             }
             return $id;
         }, $dqb->getQuery()->getSingleColumnResult());
@@ -99,6 +103,7 @@ final class EntityIdHandler extends AbstractHandler
         if (is_iterable($value)) {
             $entities = [];
             foreach ($value as $id) {
+                /** @psalm-suppress ArgumentTypeCoercion */
                 $entity = $this->entityManager->find((string) $metadata->customType, $id);
                 if ($entity) {
                     $entities[] = $entity;
@@ -111,6 +116,7 @@ final class EntityIdHandler extends AbstractHandler
             return $entities;
         }
         $deserializeType = $metadata->customType ?? $metadata->type;
+        /** @psalm-suppress ArgumentTypeCoercion */
         if (method_exists($deserializeType, 'getId') && (is_int($value) || is_string($value))) {
             return $this->entityManager->find($deserializeType, $value);
         }
@@ -124,8 +130,8 @@ final class EntityIdHandler extends AbstractHandler
         if (is_a($metadata->type, Collection::class, true)
             || Type::BUILTIN_TYPE_ARRAY === $metadata->type) {
             $description['type'] = Type::BUILTIN_TYPE_ARRAY;
-            $description['title'] = SerializerHelper::getClassBaseName($metadata->customType) . ' IDs';
-            $description['items'] = ['type' => $this->describeReturnType($metadata->customType)];
+            $description['title'] = SerializerHelper::getClassBaseName((string) $metadata->customType) . ' IDs';
+            $description['items'] = ['type' => $this->describeReturnType((string) $metadata->customType)];
 
             return $description;
         }
@@ -139,11 +145,16 @@ final class EntityIdHandler extends AbstractHandler
     private function describeReturnType(string $type): string
     {
         try {
+            /** @psalm-suppress ArgumentTypeCoercion */
             $reflection = new ReflectionMethod($type, 'getId');
         } catch (ReflectionException $e) {
             return $type;
         }
 
-        return SerializerHelper::getOaFriendlyType($reflection->getReturnType()?->getName() ?? $type);
+        if ($reflection->getReturnType() instanceof ReflectionNamedType) {
+            return SerializerHelper::getOaFriendlyType($reflection->getReturnType()->getName());
+        }
+
+        return SerializerHelper::getOaFriendlyType($type);
     }
 }
