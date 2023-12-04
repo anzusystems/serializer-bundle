@@ -28,7 +28,7 @@ final class MetadataFactory
      *
      * @throws SerializerException
      */
-    public function buildMetadata(string $className): array
+    public function buildMetadata(string $className): ClassMetadata
     {
         try {
             $reflection = new ReflectionClass($className);
@@ -39,9 +39,11 @@ final class MetadataFactory
             throw new SerializerException('Cannot create reflection for ' . $className, 0, $exception);
         }
 
-        return array_merge(
-            $this->buildPropertyMetadata($reflection),
-            $this->buildMethodMetadata($reflection)
+        return new ClassMetadata(
+            array_merge(
+                $this->buildPropertyMetadata($reflection),
+                $this->buildMethodMetadata($reflection)
+            )
         );
     }
 

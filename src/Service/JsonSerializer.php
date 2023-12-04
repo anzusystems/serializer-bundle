@@ -63,7 +63,8 @@ final class JsonSerializer
     private function objectToArray(object $data): array
     {
         $output = [];
-        foreach ($this->metadataRegistry->get($data::class) as $name => $metadata) {
+        foreach ($this->metadataRegistry->get($data::class)->getAll() as $name => $metadata) {
+            /** @var Metadata $metadata */
             $value = $data->{$metadata->getter}();
             $output[$name] = $this->handlerResolver
                 ->getSerializationHandler($value, $metadata->customHandler)

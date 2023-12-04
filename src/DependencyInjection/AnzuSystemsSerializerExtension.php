@@ -124,6 +124,7 @@ final class AnzuSystemsSerializerExtension extends Extension
                 ->setArgument('$appCache', new Reference(CacheItemPoolInterface::class))
                 ->setArgument('$appLogger', new Reference(LoggerInterface::class))
                 ->setArgument('$metadataFactory', new Reference(MetadataFactory::class))
+                ->setArgument('$eventDispatcher', new Reference('event_dispatcher'))
         );
 
         $container->setDefinition(
