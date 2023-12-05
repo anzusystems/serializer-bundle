@@ -103,6 +103,7 @@ final class MetadataFactory
                     continue;
                 }
                 $type = $returnType->getName();
+
                 break;
             }
         }
@@ -140,6 +141,7 @@ final class MetadataFactory
                     continue;
                 }
                 $type = $returnType->getName();
+
                 break;
             }
         }
@@ -175,10 +177,12 @@ final class MetadataFactory
         if ($attribute->type instanceof ContainerParam) {
             $paramName = $attribute->type->paramName;
             if ($this->parameterBag->has($paramName)) {
+                /** @psalm-suppress PossiblyInvalidCast */
                 return (string) $this->parameterBag->get($paramName);
             }
 
-            throw new SerializerException('The parameter `' . $paramName . '` not found in `'
+            throw new SerializerException(
+                'The parameter `' . $paramName . '` not found in `'
                 . AnzuSystemsSerializerExtension::SERIALIZER_PARAMETER_BAG_ID . '` configuration.'
             );
         }

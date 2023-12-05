@@ -86,7 +86,7 @@ final class Serializer
     /**
      * @throws SerializerException
      */
-    public function toArray(object|iterable $data): array
+    public function toArray(object|iterable $data): array|object
     {
         return $this->jsonSerializer->toArray($data);
     }

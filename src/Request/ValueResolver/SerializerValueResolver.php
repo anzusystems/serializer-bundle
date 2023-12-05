@@ -19,6 +19,8 @@ final class SerializerValueResolver implements ValueResolverInterface
     }
 
     /**
+     * @return array{0?: iterable<int|string, object>|null|object}
+     *
      * @throws SerializerException
      */
     public function resolve(Request $request, ArgumentMetadata $argument): iterable
@@ -36,6 +38,7 @@ final class SerializerValueResolver implements ValueResolverInterface
         $class = $argument->getType();
         $type = $attribute->type ?? $class;
 
+        /** @psalm-suppress ArgumentTypeCoercion */
         return [$this->getValue($request, $type)];
     }
 
@@ -44,9 +47,11 @@ final class SerializerValueResolver implements ValueResolverInterface
      *
      * @param class-string<T> $type
      *
-     * @return T
+     * @return T|iterable<int|string, T>
      *
      * @throws SerializerException
+     *
+     * @psalm-suppress MismatchingDocblockReturnType
      */
     private function getValue(Request $request, string $type): object
     {
