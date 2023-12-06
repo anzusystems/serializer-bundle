@@ -11,7 +11,7 @@ use Sensio\Bundle\FrameworkExtraBundle\Request\ParamConverter\ParamConverterInte
 use Symfony\Component\HttpFoundation\Request;
 
 /**
- * @deprecated Use SerializerValueResolver::class instead.
+ * @deprecated Use {@link SerializerValueResolver} instead.
  */
 final class SerializerParamConverter implements ParamConverterInterface
 {

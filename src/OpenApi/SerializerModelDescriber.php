@@ -153,7 +153,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
         $className = $model->getType()->getClassName();
         if ($className && class_exists($className)) {
             try {
-                return $this->metadataRegistry->get($className);
+                return $this->metadataRegistry->get($className)->getAll();
             } catch (SerializerException) {
                 return [];
             }

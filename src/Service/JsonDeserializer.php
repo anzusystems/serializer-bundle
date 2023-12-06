@@ -7,6 +7,7 @@ namespace AnzuSystems\SerializerBundle\Service;
 use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
+use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use Doctrine\Common\Collections\Collection;
 use JsonException;
@@ -75,9 +76,10 @@ final class JsonDeserializer
      */
     private function arrayToObject(array $data, string $className): object
     {
-        $objectMetadata = $this->metadataRegistry->get($className);
+        $objectMetadata = $this->metadataRegistry->get($className)->getAll();
         $object = new $className();
         foreach ($objectMetadata as $name => $metadata) {
+            /** @var Metadata $metadata */
             if (null === $metadata->setter || false === array_key_exists($name, $data)) {
                 continue;
             }

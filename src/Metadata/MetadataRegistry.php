@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Metadata;
 
+use AnzuSystems\SerializerBundle\Event\LoadMetadataEvent;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use Doctrine\Common\Util\ClassUtils;
 use Doctrine\Persistence\Proxy;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 final class MetadataRegistry
 {
-    private const CACHE_PREFIX = 'anzu_ser_';
+    private const CACHE_PREFIX = 'anzu_serlz_';
 
     /**
-     * @var array<class-string, array<string, Metadata>>
+     * @var array<class-string, ClassMetadata>
      */
     private array $metadata = [];
 
@@ -24,22 +26,21 @@ final class MetadataRegistry
         private readonly CacheItemPoolInterface $appCache,
         private readonly LoggerInterface $appLogger,
         private readonly MetadataFactory $metadataFactory,
+        private readonly EventDispatcherInterface $eventDispatcher,
     ) {
     }
 
     /**
      * @param class-string $className
      *
-     * @return array<string, Metadata>
-     *
      * @throws SerializerException
      */
-    public function get(string $className): array
+    public function get(string $className): ClassMetadata
     {
         if (is_a($className, Proxy::class, true)) {
             $className = ClassUtils::getRealClass($className);
         }
-        if (false === array_key_exists($className, $this->metadata)) {
+        if (false === isset($this->metadata[$className])) {
             try {
                 $cachedItem = $this->appCache->getItem(self::CACHE_PREFIX . $className);
                 if ($cachedItem->isHit()) {
@@ -48,6 +49,9 @@ final class MetadataRegistry
                     return $this->metadata[$className];
                 }
                 $this->metadata[$className] = $this->metadataFactory->buildMetadata($className);
+
+                $this->eventDispatcher->dispatch(new LoadMetadataEvent($this->metadata[$className]), LoadMetadataEvent::NAME);
+
                 $cachedItem->set($this->metadata[$className]);
                 $this->appCache->save($cachedItem);
             } catch (InvalidArgumentException) {

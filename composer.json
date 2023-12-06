@@ -13,7 +13,8 @@
     "require": {
         "php": ">=8.1",
         "ext-json": "*",
-        "doctrine/common": "^3.3"
+        "doctrine/common": "^3.3",
+        "symfony/event-dispatcher": "^5.3|^6.0|^7.0"
     },
     "require-dev": {
         "doctrine/doctrine-bundle": "^2.10",

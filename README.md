@@ -269,3 +269,7 @@ public function create(#[SerializeParam] Topic $topic): JsonResponse
     );
 }
 ```
+
+### Events
+
+- `anzu_systems_serializer.load_metadata` is called after the class metadata are loaded
