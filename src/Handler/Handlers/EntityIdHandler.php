@@ -136,7 +136,6 @@ final class EntityIdHandler extends AbstractHandler
             }
         }
         $resultIds = array_map(function (null|int|string $id) use ($uuids) {
-            /** @psalm-suppress TypeDoesNotContainType */
             if (class_exists(Uuid::class) && $uuids) {
                 return Uuid::fromString((string) $id);
             }
