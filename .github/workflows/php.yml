@@ -1,0 +1,61 @@
+name: CI for AnzuSystems Serializer by Petit Press a.s. (www.sme.sk)
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - php-version: 8.2
+            docker-image: 'anzusystems/php:3.0.0-php82-cli'
+          - php-version: 8.3
+            docker-image: 'anzusystems/php:3.0.0-php83-cli'
+
+    services:
+      mysql:
+        image: mysql:8
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: admin
+          MYSQL_DATABASE: serializerbundle
+
+    name: PHP ${{ matrix.php-version }}
+    runs-on: ubuntu-latest
+    container: ${{ matrix.docker-image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Validate composer.json
+        run: composer validate
+
+      - name: Cache Composer packages
+        id: composer-cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-ansi --no-interaction --no-scripts
+
+      - name: Run Security check
+        run: composer audit --no-scripts
+
+      - name: Run ECS style check
+        run: vendor/bin/ecs check -vv
+
+      - name: Run PSALM static analysis
+        run: vendor/bin/psalm
+
+      - name: Run PHPUnit tests
+        env:
+          DB_BUNDLE_URL: 'mysql://root:admin@mysql:3306/serializerbundle?serverVersion=8.0'
+        run: vendor/bin/phpunit
