@@ -49,6 +49,12 @@ jobs:
       - name: Run Security check
         run: composer audit --no-scripts
 
+      - name: Run ECS style check
+        run: vendor/bin/ecs check -vv
+
+      - name: Run PSALM static analysis
+        run: vendor/bin/psalm
+
       - name: Run PHPUnit tests
         env:
           DB_BUNDLE_URL: 'mysql://root:admin@mysql:3306/serializerbundle?serverVersion=8.0'
