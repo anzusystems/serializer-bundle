@@ -17,7 +17,6 @@ use AnzuSystems\SerializerBundle\Handler\Handlers\UuidHandler;
 use AnzuSystems\SerializerBundle\Metadata\MetadataFactory;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use AnzuSystems\SerializerBundle\OpenApi\SerializerModelDescriber;
-use AnzuSystems\SerializerBundle\Request\ParamConverter\SerializerParamConverter;
 use AnzuSystems\SerializerBundle\Request\ValueResolver\SerializerValueResolver;
 use AnzuSystems\SerializerBundle\Serializer;
 use AnzuSystems\SerializerBundle\Service\JsonDeserializer;
@@ -27,7 +26,6 @@ use Exception;
 use Nelmio\ApiDocBundle\ModelDescriber\ModelDescriberInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
-use Sensio\Bundle\FrameworkExtraBundle\Request\ParamConverter\ParamConverterInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -146,18 +144,6 @@ final class AnzuSystemsSerializerExtension extends Extension
                 ->setArgument('$jsonSerializer', new Reference(JsonSerializer::class))
                 ->setArgument('$jsonDeserializer', new Reference(JsonDeserializer::class))
         );
-
-        if (interface_exists(ParamConverterInterface::class)) {
-            $container->setDefinition(
-                SerializerParamConverter::class,
-                (new Definition(SerializerParamConverter::class))
-                    ->setArgument('$serializer', new Reference(Serializer::class))
-                    ->addTag('request.param_converter', [
-                        'priority' => false,
-                        'converter' => SerializerParamConverter::class,
-                    ])
-            );
-        }
 
         if (interface_exists(ValueResolverInterface::class)) {
             $container

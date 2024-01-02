@@ -16,14 +16,14 @@
         "doctrine/common": "^3.3"
     },
     "require-dev": {
+        "doctrine/annotations": "^2.0",
         "doctrine/doctrine-bundle": "^2.10",
         "doctrine/orm": "^2.13",
         "nelmio/api-doc-bundle": "^4.9",
-        "sensio/framework-extra-bundle": "^6.2",
         "slevomat/coding-standard": "^8.14",
-        "symfony/dotenv": "^6.3",
+        "symfony/dotenv": "6.*|7.*",
         "symfony/test-pack": "^1.1",
-        "symfony/uid": "^6.3",
+        "symfony/uid": "6.*|7.*",
         "symplify/easy-coding-standard": "^12.0",
         "vimeo/psalm": "^5.16"
     },
