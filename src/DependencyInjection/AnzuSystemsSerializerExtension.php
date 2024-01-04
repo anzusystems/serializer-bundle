@@ -158,7 +158,6 @@ final class AnzuSystemsSerializerExtension extends Extension
                 (new Definition(SerializerModelDescriber::class))
                     ->setArgument('$metadataRegistry', new Reference(MetadataRegistry::class))
                     ->setArgument('$handlerResolver', new Reference(HandlerResolver::class))
-                    ->setArgument('$annotationsReader', new Reference('annotations.reader'))
                     ->addTag('nelmio_api_doc.model_describer', ['priority' => 500])
             );
         }
