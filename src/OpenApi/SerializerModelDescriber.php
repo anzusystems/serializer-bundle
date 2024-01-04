@@ -9,7 +9,6 @@ use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
 use AnzuSystems\SerializerBundle\Helper\SerializerHelper;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
-use Doctrine\Common\Annotations\Reader;
 use Nelmio\ApiDocBundle\Model\Model;
 use Nelmio\ApiDocBundle\ModelDescriber\Annotations\SymfonyConstraintAnnotationReader;
 use Nelmio\ApiDocBundle\ModelDescriber\ModelDescriberInterface;
@@ -25,14 +24,12 @@ final class SerializerModelDescriber implements ModelDescriberInterface
 {
     public const NESTED_CLASS = 'nested_object';
 
-    private SymfonyConstraintAnnotationReader $symfonyConstraintAnnotationReader;
+    private ?SymfonyConstraintAnnotationReader $symfonyConstraintAnnotationReader = null;
 
     public function __construct(
         private readonly MetadataRegistry $metadataRegistry,
         private readonly HandlerResolver $handlerResolver,
-        Reader $annotationsReader,
     ) {
-        $this->symfonyConstraintAnnotationReader = new SymfonyConstraintAnnotationReader($annotationsReader);
     }
 
     public function supports(Model $model): bool
@@ -67,7 +64,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
             if ($metadata->property && null !== $model->getType()->getClassName()) {
                 /** @psalm-suppress ArgumentTypeCoercion */
                 $propertyReflection = new ReflectionProperty($model->getType()->getClassName(), $metadata->property);
-                $this->symfonyConstraintAnnotationReader->updateProperty($propertyReflection, $property);
+                $this->getSymfonyConstraintAnnotationReader()->updateProperty($propertyReflection, $property);
                 $this->addDocBlockDescription($propertyReflection, $property);
             }
 
@@ -81,6 +78,15 @@ final class SerializerModelDescriber implements ModelDescriberInterface
             $properties[] = $property;
         }
         $schema->properties = $properties;
+    }
+
+    private function getSymfonyConstraintAnnotationReader(): SymfonyConstraintAnnotationReader
+    {
+        if (null === $this->symfonyConstraintAnnotationReader) {
+            $this->symfonyConstraintAnnotationReader = new SymfonyConstraintAnnotationReader(null);
+        }
+
+        return $this->symfonyConstraintAnnotationReader;
     }
 
     private function addDocBlockDescription(ReflectionProperty|ReflectionMethod $reflection, Property $property): void
@@ -115,6 +121,9 @@ final class SerializerModelDescriber implements ModelDescriberInterface
         }
     }
 
+    /**
+     * @throws ReflectionException | SerializerException
+     */
     private function describeNested(string $property, string $className): ?Property
     {
         $nestedModel = new Model(new Type(Type::BUILTIN_TYPE_OBJECT, class: $className));
@@ -131,6 +140,9 @@ final class SerializerModelDescriber implements ModelDescriberInterface
         return null;
     }
 
+    /**
+     * @throws ReflectionException | SerializerException
+     */
     private function describeNestedItems(array &$description): void
     {
         if (isset($description['items'][self::NESTED_CLASS])) {

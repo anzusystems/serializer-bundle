@@ -2,6 +2,8 @@
 <psalm
         resolveFromConfigFile="true"
         findUnusedVariablesAndParams="true"
+        findUnusedCode="false"
+        findUnusedBaselineEntry="false"
         usePhpDocMethodsWithoutMagicCall="true"
         allowStringToStandInForClass="false"
         memoizeMethodCallResults="true"
