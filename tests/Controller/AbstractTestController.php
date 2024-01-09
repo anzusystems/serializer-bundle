@@ -8,6 +8,7 @@ use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Serializer;
 use AnzuSystems\SerializerBundle\Tests\AnzuTestKernel;
 use Exception;
+use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Request;
@@ -48,11 +49,12 @@ abstract class AbstractTestController extends WebTestCase
     protected function getDeserialized(string $uri, string $deserializationClass, array $parameters = []): object
     {
         self::$client->request(method: Request::METHOD_GET, uri: $uri, parameters: $parameters);
+        $content = (string) self::$client->getResponse()->getContent();
+        if (self::$client->getResponse()->getStatusCode() >= 500) {
+            throw new RuntimeException('API getDeserialized error: ' . $content);
+        }
 
-        return $this->serializer->deserialize(
-            (string) self::$client->getResponse()->getContent(),
-            $deserializationClass
-        );
+        return $this->serializer->deserialize($content, $deserializationClass);
     }
 
     /**
@@ -67,6 +69,9 @@ abstract class AbstractTestController extends WebTestCase
         $payloadSerialized = $this->serializer->serialize($payload);
         self::$client->request(method: Request::METHOD_POST, uri: $uri, content: $payloadSerialized);
         $content = (string) self::$client->getResponse()->getContent();
+        if (self::$client->getResponse()->getStatusCode() >= 500) {
+            throw new RuntimeException('API post error: ' . $content);
+        }
 
         return $this->serializer->deserialize($content, $payload::class);
     }

@@ -21,6 +21,7 @@ class Example
 {
     #[ORM\Column(type: Types::INTEGER)]
     #[ORM\Id]
+    #[ORM\GeneratedValue(strategy: 'AUTO')]
     #[Serialize]
     private int $id = 0;
 
@@ -40,14 +41,13 @@ class Example
     #[Serialize]
     private ExampleBackedEnum $place = ExampleBackedEnum::First;
 
-    #[ORM\Column(enumType: ExampleUnitEnum::class)]
     #[Serialize]
     private ExampleUnitEnum $color = ExampleUnitEnum::Red;
 
     /**
      * @var array<int|string>
      */
-    #[ORM\Column(type: Types::SIMPLE_ARRAY)]
+    #[ORM\Column(type: Types::JSON)]
     #[Serialize(handler: ArrayStringHandler::class)]
     private array $letters = [];
 

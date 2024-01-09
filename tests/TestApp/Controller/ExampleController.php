@@ -8,47 +8,37 @@ use AnzuSystems\SerializerBundle\Attributes\SerializeParam;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Serializer;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Entity\Example;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
-#[Route('/dummy')]
-final class DummyController extends AbstractController
+#[Route('/example')]
+final class ExampleController extends AbstractController
 {
     public function __construct(
         private readonly Serializer $serializer,
+        private readonly EntityManagerInterface $entityManager,
     ) {
     }
 
-    #[Route('/ok', methods: [Request::METHOD_GET])]
-    public function okTest(): JsonResponse
+    /**
+     * @throws SerializerException
+     */
+    #[Route('', 'create', methods: [Request::METHOD_POST])]
+    public function create(#[SerializeParam] Example $example): JsonResponse
     {
-        return new JsonResponse(['ok']);
+        $this->entityManager->persist($example);
+        $this->entityManager->flush();
+
+        return new JsonResponse($this->serializer->toArray($example), JsonResponse::HTTP_CREATED);
     }
 
     /**
      * @throws SerializerException
      */
-    #[Route('/value-resolver', methods: [Request::METHOD_POST])]
-    public function valueResolverPostTest(#[SerializeParam] Example $example): JsonResponse
-    {
-        return new JsonResponse($this->serializer->toArray($example));
-    }
-
-    /**
-     * @throws SerializerException
-     */
-    #[Route('/value-resolver', methods: [Request::METHOD_GET])]
-    public function valueResolverGetTest(#[SerializeParam] Example $example): JsonResponse
-    {
-        return new JsonResponse($this->serializer->toArray($example));
-    }
-
-    /**
-     * @throws SerializerException
-     */
-    #[Route('/example/{example}', 'get_one', ['example' => '\d+'], methods: [Request::METHOD_GET])]
+    #[Route('/{example}', 'get_one', ['example' => '\d+'], methods: [Request::METHOD_GET])]
     public function getOne(Example $example): JsonResponse
     {
         return new JsonResponse($this->serializer->toArray($example));

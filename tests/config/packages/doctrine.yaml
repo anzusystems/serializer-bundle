@@ -8,5 +8,5 @@ doctrine:
         mappings:
             App:
                 dir: '%kernel.project_dir%/tests/TestApp/Entity'
-                prefix: 'AnzuSystems\CommonBundle\Tests\TestApp\Entity'
+                prefix: 'AnzuSystems\SerializerBundle\Tests\TestApp\Entity'
                 type: attribute
