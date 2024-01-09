@@ -31,7 +31,16 @@ final class DummyController extends AbstractController
      * @throws SerializerException
      */
     #[Route('/value-resolver', methods: [Request::METHOD_POST])]
-    public function valueResolverTest(#[SerializeParam] Example $example): JsonResponse
+    public function valueResolverPostTest(#[SerializeParam] Example $example): JsonResponse
+    {
+        return new JsonResponse($this->serializer->toArray($example));
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    #[Route('/value-resolver', methods: [Request::METHOD_GET])]
+    public function valueResolverGetTest(#[SerializeParam] Example $example): JsonResponse
     {
         return new JsonResponse($this->serializer->toArray($example));
     }

@@ -31,19 +31,33 @@ abstract class AbstractTestController extends WebTestCase
         }
     }
 
-    protected function get(string $uri): string
+    protected function get(string $uri, array $parameters = []): string
     {
-        self::$client->request(method: Request::METHOD_GET, uri: $uri);
+        self::$client->request(method: Request::METHOD_GET, uri: $uri, parameters: $parameters);
 
         return (string) self::$client->getResponse()->getContent();
     }
 
     /**
      * @template T of object
+     * @param class-string<T> $deserializationClass
+     * @return T
      *
-     * @param string $uri
+     * @throws SerializerException
+     */
+    protected function getDeserialized(string $uri, string $deserializationClass, array $parameters = []): object
+    {
+        self::$client->request(method: Request::METHOD_GET, uri: $uri, parameters: $parameters);
+
+        return $this->serializer->deserialize(
+            (string) self::$client->getResponse()->getContent(),
+            $deserializationClass
+        );
+    }
+
+    /**
+     * @template T of object
      * @param T $payload
-     *
      * @return T
      *
      * @throws SerializerException

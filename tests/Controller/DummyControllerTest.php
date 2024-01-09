@@ -21,8 +21,16 @@ final class DummyControllerTest extends AbstractTestController
     public function testValueResolver(): void
     {
         $payload = (new Example())->setName('Some example name.');
-        $response = $this->post('/dummy/value-resolver', $payload);
+        $response1 = $this->post('/dummy/value-resolver', $payload);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
-        self::assertEquals($payload->getName(), $response->getName());
+        self::assertEquals($payload->getName(), $response1->getName());
+
+        $response2 = $this->getDeserialized(
+            '/dummy/value-resolver',
+            Example::class,
+            ['name' => $payload->getName()],
+        );
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertEquals($payload->getName(), $response2->getName());
     }
 }

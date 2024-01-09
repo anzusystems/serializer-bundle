@@ -14,6 +14,7 @@ final class Serialize
     public const DISCRIMINATOR_COLUMN = 'discriminator';
 
     /**
+     * @param array<string, class-string>|null $discriminatorMap
      * @param null|array<string, 'ASC'|'DESC'> $orderBy
      */
     public function __construct(
