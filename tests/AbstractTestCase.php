@@ -6,6 +6,7 @@ namespace AnzuSystems\SerializerBundle\Tests;
 
 use AnzuSystems\SerializerBundle\Serializer;
 use Exception;
+use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 abstract class AbstractTestCase extends KernelTestCase
@@ -18,7 +19,11 @@ abstract class AbstractTestCase extends KernelTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->serializer = self::getContainer()->get(Serializer::class);
+        $serializer = self::getContainer()->get(Serializer::class);
+        if (false === ($serializer instanceof Serializer)) {
+            throw new RuntimeException('Cannot get Serializer from container.');
+        }
+        $this->serializer = $serializer;
     }
 
     protected static function getKernelClass(): string

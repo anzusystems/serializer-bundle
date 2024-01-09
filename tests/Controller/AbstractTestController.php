@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Tests\Controller;
 
+use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Serializer;
 use AnzuSystems\SerializerBundle\Tests\AnzuTestKernel;
 use Exception;
@@ -24,7 +25,10 @@ abstract class AbstractTestController extends WebTestCase
         parent::setUp();
         static::$client = static::createClient();
         static::$client->disableReboot();
-        $this->serializer = self::getContainer()->get(Serializer::class);
+        $serializer = self::getContainer()->get(Serializer::class);
+        if ($serializer instanceof Serializer) {
+            $this->serializer = $serializer;
+        }
     }
 
     protected function get(string $uri): string
@@ -32,6 +36,25 @@ abstract class AbstractTestController extends WebTestCase
         self::$client->request(method: Request::METHOD_GET, uri: $uri);
 
         return (string) self::$client->getResponse()->getContent();
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param string $uri
+     * @param T $payload
+     *
+     * @return T
+     *
+     * @throws SerializerException
+     */
+    protected function post(string $uri, object $payload): object
+    {
+        $payloadSerialized = $this->serializer->serialize($payload);
+        self::$client->request(method: Request::METHOD_POST, uri: $uri, content: $payloadSerialized);
+        $content = (string) self::$client->getResponse()->getContent();
+
+        return $this->serializer->deserialize($content, $payload::class);
     }
 
     protected static function getKernelClass(): string

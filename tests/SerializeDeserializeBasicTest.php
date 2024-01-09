@@ -9,7 +9,6 @@ use AnzuSystems\SerializerBundle\Tests\TestApp\Entity\Example;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleBackedEnum;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleUnitEnum;
 use DateTimeImmutable;
-use UnitEnum;
 
 final class SerializeDeserializeBasicTest extends AbstractTestCase
 {
