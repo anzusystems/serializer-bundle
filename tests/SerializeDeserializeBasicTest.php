@@ -44,7 +44,8 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
                 '"createdAt":"2023-12-31T12:34:56Z",' .
                 '"place":"first",' .
                 '"color":"Red",' .
-                '"letters":"a,b,c,d"' .
+                '"letters":"a,b,c,d",' .
+                '"items":[]' .
             '}',
             (new Example())
                 ->setId(1)
@@ -65,7 +66,8 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
                 '"createdAt":"2022-12-31T00:00:00Z",' .
                 '"place":"second",' .
                 '"color":"Green",' .
-                '"letters":"1,2,3,4"' .
+                '"letters":"1,2,3,4",' .
+                '"items":[]' .
             '}',
             (new Example())
                 ->setId(2)

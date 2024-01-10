@@ -6,9 +6,13 @@ namespace AnzuSystems\SerializerBundle\Tests\TestApp\Entity;
 
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
 use AnzuSystems\SerializerBundle\Handler\Handlers\ArrayStringHandler;
+use AnzuSystems\SerializerBundle\Handler\Handlers\EntityIdHandler;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleBackedEnum;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleUnitEnum;
 use DateTimeImmutable;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\Criteria;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -51,11 +55,19 @@ class Example
     #[Serialize(handler: ArrayStringHandler::class)]
     private array $letters = [];
 
+    /**
+     * @var Collection<array-key, ExampleItem>
+     */
+    #[ORM\OneToMany(mappedBy: 'example', targetEntity: ExampleItem::class)]
+    #[Serialize(handler: EntityIdHandler::class, type: ExampleItem::class, orderBy: ['name' => Criteria::ASC])]
+    private Collection $items;
+
     public function __construct()
     {
         $this
             ->setUuid(new NilUuid())
             ->setCreatedAt(new DateTimeImmutable())
+            ->setItems(new ArrayCollection())
         ;
     }
 
@@ -145,6 +157,24 @@ class Example
     public function setLetters(array $letters): self
     {
         $this->letters = $letters;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<array-key, ExampleItem>
+     */
+    public function getItems(): Collection
+    {
+        return $this->items;
+    }
+
+    /**
+     * @param Collection<array-key, ExampleItem> $items
+     */
+    public function setItems(Collection $items): self
+    {
+        $this->items = $items;
 
         return $this;
     }
