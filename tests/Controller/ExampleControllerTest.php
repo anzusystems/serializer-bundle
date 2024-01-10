@@ -25,19 +25,33 @@ final class ExampleControllerTest extends AbstractTestController
         self::assertEquals($payloadExample->getName(), $createdExample->getName());
         self::assertTrue($payloadExample->getUuid()->equals($createdExample->getUuid()));
 
-        $payloadExampleItem = (new ExampleItem())
+        $payloadExampleItem1 = (new ExampleItem())
             ->setExample($createdExample)
-            ->setName('Created example item.')
+            ->setName('Ava')
         ;
-        $createdExampleItem = $this->post('/example/item', $payloadExampleItem);
+        $createdExampleItem1 = $this->post('/example/item', $payloadExampleItem1);
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
-        self::assertEquals($payloadExampleItem->getName(), $createdExampleItem->getName());
+        self::assertEquals($payloadExampleItem1->getName(), $createdExampleItem1->getName());
+
+        $payloadExampleItem2 = (new ExampleItem())
+            ->setExample($createdExample)
+            ->setName('Neo')
+        ;
+        $this->post('/example/item', $payloadExampleItem2);
+
+        $payloadExampleItem3 = (new ExampleItem())
+            ->setExample($createdExample)
+            ->setName('Bob')
+        ;
+        $this->post('/example/item', $payloadExampleItem3);
 
         $responseExample = $this->getDeserialized('/example/' . $createdExample->getId(), Example::class);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
         self::assertEquals($createdExample->getId(), $responseExample->getId());
         self::assertEquals($payloadExample->getName(), $responseExample->getName());
         self::assertTrue($payloadExample->getUuid()->equals($responseExample->getUuid()));
-        self::assertEquals($payloadExampleItem->getExample()->getId(), $responseExample->getItems()->first()->getExample()->getId());
+
+        self::assertEquals($payloadExampleItem1->getName(), $responseExample->getItems()->first()->getName());
+        self::assertEquals($payloadExampleItem2->getName(), $responseExample->getItems()->last()->getName());
     }
 }
