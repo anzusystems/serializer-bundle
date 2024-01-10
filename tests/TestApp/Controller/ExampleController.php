@@ -42,6 +42,7 @@ final class ExampleController extends AbstractController
     #[Route('/item', 'create_example_item', methods: [Request::METHOD_POST])]
     public function createExampleItem(#[SerializeParam] ExampleItem $exampleItem): JsonResponse
     {
+        $exampleItem->getExample()->getItems()->add($exampleItem);
         $this->entityManager->persist($exampleItem);
         $this->entityManager->flush();
 

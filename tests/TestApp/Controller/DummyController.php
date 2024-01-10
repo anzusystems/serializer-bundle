@@ -44,13 +44,4 @@ final class DummyController extends AbstractController
     {
         return new JsonResponse($this->serializer->toArray($example));
     }
-
-    /**
-     * @throws SerializerException
-     */
-    #[Route('/example/{example}', 'get_one', ['example' => '\d+'], methods: [Request::METHOD_GET])]
-    public function getOne(Example $example): JsonResponse
-    {
-        return new JsonResponse($this->serializer->toArray($example));
-    }
 }

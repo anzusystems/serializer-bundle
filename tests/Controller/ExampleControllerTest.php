@@ -47,6 +47,7 @@ final class ExampleControllerTest extends AbstractTestController
 
         $responseExample = $this->getDeserialized('/example/' . $createdExample->getId(), Example::class);
         self::assertResponseStatusCodeSame(Response::HTTP_OK);
+        self::assertCount(3, $responseExample->getItems());
         self::assertEquals($createdExample->getId(), $responseExample->getId());
         self::assertEquals($payloadExample->getName(), $responseExample->getName());
         self::assertTrue($payloadExample->getUuid()->equals($responseExample->getUuid()));
