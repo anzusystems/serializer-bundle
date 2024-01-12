@@ -7,10 +7,12 @@ namespace AnzuSystems\SerializerBundle\Tests;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Entity\Example;
-use DateTimeImmutable;
 
 final class SerializerValidationExceptionTest extends AbstractTestCase
 {
+    /**
+     * @throws SerializerException
+     */
     public function testInvalidJsonString(): void
     {
         $this->expectException(DeserializationException::class);
@@ -18,6 +20,9 @@ final class SerializerValidationExceptionTest extends AbstractTestCase
         $this->serializer->deserialize('{id":1}', Example::class);
     }
 
+    /**
+     * @throws SerializerException
+     */
     public function testInvalidDateFormat(): void
     {
         $this->expectException(DeserializationException::class);
@@ -25,6 +30,9 @@ final class SerializerValidationExceptionTest extends AbstractTestCase
         $this->serializer->deserialize('{"createdAt":"31.12.2023"}', Example::class);
     }
 
+    /**
+     * @throws SerializerException
+     */
     public function testInvalidBackedEnum(): void
     {
         $this->expectException(DeserializationException::class);
@@ -32,6 +40,9 @@ final class SerializerValidationExceptionTest extends AbstractTestCase
         $this->serializer->deserialize('{"place":"nonexistent"}', Example::class);
     }
 
+    /**
+     * @throws SerializerException
+     */
     public function testInvalidUnitEnum(): void
     {
         $this->expectException(DeserializationException::class);

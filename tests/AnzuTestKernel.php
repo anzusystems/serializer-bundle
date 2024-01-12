@@ -23,12 +23,14 @@ final class AnzuTestKernel extends Kernel
         yield new AnzuSystemsSerializerBundle();
     }
 
+    /** @noinspection PhpUnused */
     protected function configureContainer(ContainerConfigurator $container): void
     {
         $container->import(__DIR__ . '/config/{packages}/*.yaml');
         $container->import(__DIR__ . '/config/{services}/*.php');
     }
 
+    /** @noinspection PhpUnused */
     protected function configureRoutes(RoutingConfigurator $routes): void
     {
         $routes->import(__DIR__ . '/config/routing/routing.php');
