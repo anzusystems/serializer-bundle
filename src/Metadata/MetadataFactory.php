@@ -196,7 +196,8 @@ final class MetadataFactory
         }
         $setter = 'set' . ucfirst($property->getName());
         if (false === $declaringClass->hasMethod($setter)) {
-            throw new SerializerException('Setter method ' . $setter . ' not found in ' . $declaringClass->getName() . '.');
+            // setter is required for deserialization only
+            $setter = null;
         }
 
         return new Metadata(
