@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle;
 
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Service\JsonDeserializer;
 use AnzuSystems\SerializerBundle\Service\JsonSerializer;
@@ -44,6 +45,10 @@ final class Serializer
      */
     public function deserializeIterable(string $data, string $className, iterable $iterable): iterable
     {
+        if ('[]' === $data || '{}' === $data) {
+            return $iterable;
+        }
+
         return $this->jsonDeserializer->deserialize($data, $className, $iterable);
     }
 
@@ -78,16 +83,24 @@ final class Serializer
     /**
      * @throws SerializerException
      */
-    public function serialize(object|iterable $data): string
+    public function serialize(object|iterable $data, ?SerializationContext $context = null): string
     {
-        return $this->jsonSerializer->serialize($data);
+        if (null === $context) {
+            $context = SerializationContext::create();
+        }
+
+        return $this->jsonSerializer->serialize($data, $context);
     }
 
     /**
      * @throws SerializerException
      */
-    public function toArray(object|iterable $data): array|object
+    public function toArray(object|iterable $data, ?SerializationContext $context = null): array|object
     {
-        return $this->jsonSerializer->toArray($data);
+        if (null === $context) {
+            $context = SerializationContext::create();
+        }
+
+        return $this->jsonSerializer->toArray($data, null, $context);
     }
 }

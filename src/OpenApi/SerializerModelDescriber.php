@@ -45,6 +45,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
         $schema->type = Type::BUILTIN_TYPE_OBJECT;
         $properties = [];
         foreach ($this->getMetadata($model) as $propertyName => $metadata) {
+            /** @var Metadata $metadata */
             $handler = $this->handlerResolver->getDescriptionHandler($propertyName, $metadata);
             $description = $handler->describe($propertyName, $metadata);
 
@@ -61,7 +62,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
             $property = new Property($description);
 
             // Describe symfony constraints and property docBlock description.
-            if ($metadata->property && null !== $model->getType()->getClassName()) {
+            if (null !== $metadata->property && null !== $model->getType()->getClassName()) {
                 /** @psalm-suppress ArgumentTypeCoercion */
                 $propertyReflection = new ReflectionProperty($model->getType()->getClassName(), $metadata->property);
                 $this->getSymfonyConstraintAnnotationReader()->updateProperty($propertyReflection, $property);
@@ -83,6 +84,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
     private function getSymfonyConstraintAnnotationReader(): SymfonyConstraintAnnotationReader
     {
         if (null === $this->symfonyConstraintAnnotationReader) {
+            /** @psalm-suppress NullArgument */
             $this->symfonyConstraintAnnotationReader = new SymfonyConstraintAnnotationReader(null);
         }
 
@@ -92,7 +94,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
     private function addDocBlockDescription(ReflectionProperty|ReflectionMethod $reflection, Property $property): void
     {
         $docComment = $reflection->getDocComment();
-        if ($docComment) {
+        if (false !== $docComment) {
             $docComment = explode(PHP_EOL, $docComment);
 
             $firstKey = array_key_first($docComment);
@@ -163,9 +165,9 @@ final class SerializerModelDescriber implements ModelDescriberInterface
     private function getMetadata(Model $model): array
     {
         $className = $model->getType()->getClassName();
-        if ($className && class_exists($className)) {
+        if (null !== $className && '' !== $className && class_exists($className)) {
             try {
-                return $this->metadataRegistry->get($className);
+                return $this->metadataRegistry->get($className)->getAll();
             } catch (SerializerException) {
                 return [];
             }

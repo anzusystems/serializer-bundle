@@ -44,7 +44,7 @@ abstract class AbstractHandler implements HandlerInterface
         }
         if (Type::BUILTIN_TYPE_ARRAY === $metadata->type) {
             $itemType = [];
-            if ($metadata->customType) {
+            if (null !== $metadata->customType && '' !== $metadata->customType) {
                 $itemType = ['type' => $metadata->customType];
             }
             $description['items'] = $itemType;

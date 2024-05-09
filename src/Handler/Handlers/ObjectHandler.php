@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Helper\SerializerHelper;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use AnzuSystems\SerializerBundle\OpenApi\SerializerModelDescriber;
@@ -39,16 +40,16 @@ final class ObjectHandler extends AbstractHandler
      *
      * @param object|array $value
      */
-    public function serialize(mixed $value, Metadata $metadata): array|object
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): array|object
     {
-        if ($metadata->orderBy && $value instanceof Selectable) {
+        if (null !== $metadata->orderBy && $value instanceof Selectable) {
             $criteria = Criteria::create()
                 ->orderBy($metadata->orderBy);
 
-            return $this->jsonSerializer->toArray($value->matching($criteria), $metadata);
+            return $this->jsonSerializer->toArray($value->matching($criteria), $metadata, $context);
         }
 
-        return $this->jsonSerializer->toArray($value, $metadata);
+        return $this->jsonSerializer->toArray($value, $metadata, $context);
     }
 
     public static function supportsDeserialize(mixed $value, string $type): bool
@@ -67,7 +68,12 @@ final class ObjectHandler extends AbstractHandler
             /** @var Collection<int|string, iterable|object> $collection */
             $collection = new ArrayCollection();
             foreach ($value as $key => $item) {
-                $collection->set($key, $this->jsonDeserializer->fromArray($item, $this->getDeserializeCustomType($item, $metadata) ?? $metadata->type));
+                if (is_array($item)) {
+                    $val = $this->jsonDeserializer->fromArray($item, $this->getDeserializeCustomType($item, $metadata) ?? $metadata->type);
+                } else {
+                    $val = $item;
+                }
+                $collection->set($key, $val);
             }
 
             return $collection;
@@ -98,7 +104,7 @@ final class ObjectHandler extends AbstractHandler
 
                 return $description;
             }
-            if ($metadata->customType && class_exists($metadata->customType)) {
+            if (null !== $metadata->customType && class_exists($metadata->customType)) {
                 $description['title'] = 'Array of ' . SerializerHelper::getClassBaseName($metadata->customType);
                 $description['items'] = [
                     'type' => Type::BUILTIN_TYPE_OBJECT,
@@ -121,7 +127,7 @@ final class ObjectHandler extends AbstractHandler
      */
     private function getDeserializeCustomType(mixed $item, Metadata $metadata): string|null
     {
-        if ($metadata->discriminatorMap && array_key_exists(Serialize::DISCRIMINATOR_COLUMN, $item)) {
+        if (null !== $metadata->discriminatorMap && array_key_exists(Serialize::DISCRIMINATOR_COLUMN, $item)) {
             return $metadata->discriminatorMap[
                 $item[Serialize::DISCRIMINATOR_COLUMN]
             ];

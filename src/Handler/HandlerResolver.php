@@ -25,7 +25,7 @@ final class HandlerResolver
     public function getSerializationHandler(mixed $value, ?string $customHandler): HandlerInterface
     {
         try {
-            if ($customHandler) {
+            if (null !== $customHandler && '' !== $customHandler) {
                 return $this->handlerLocator->get($customHandler);
             }
             /** @var class-string<HandlerInterface> $handler */
@@ -50,7 +50,7 @@ final class HandlerResolver
         ?string $customHandler
     ): HandlerInterface {
         try {
-            if ($customHandler) {
+            if (null !== $customHandler && '' !== $customHandler) {
                 return $this->handlerLocator->get($customHandler);
             }
             /** @var class-string<HandlerInterface> $handler */
@@ -72,7 +72,7 @@ final class HandlerResolver
     public function getDescriptionHandler(string $property, Metadata $metadata): HandlerInterface
     {
         try {
-            if ($metadata->customHandler) {
+            if (null !== $metadata->customHandler && '' !== $metadata->customHandler) {
                 return $this->handlerLocator->get($metadata->customHandler);
             }
 

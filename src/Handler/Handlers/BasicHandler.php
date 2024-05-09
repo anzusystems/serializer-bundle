@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use Symfony\Component\PropertyInfo\Type;
 
@@ -26,7 +27,7 @@ final class BasicHandler extends AbstractHandler
         return is_scalar($value) || null === $value;
     }
 
-    public function serialize(mixed $value, Metadata $metadata): string|int|bool|null|float
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): string|int|bool|null|float
     {
         return $value;
     }

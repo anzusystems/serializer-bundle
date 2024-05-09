@@ -13,10 +13,10 @@ use Psr\Log\LoggerInterface;
 
 final class MetadataRegistry
 {
-    private const CACHE_PREFIX = 'anzu_ser_';
+    private const CACHE_PREFIX = 'anzu_serlz_';
 
     /**
-     * @var array<class-string, array<string, Metadata>>
+     * @var array<class-string, ClassMetadata>
      */
     private array $metadata = [];
 
@@ -30,16 +30,14 @@ final class MetadataRegistry
     /**
      * @param class-string $className
      *
-     * @return array<string, Metadata>
-     *
      * @throws SerializerException
      */
-    public function get(string $className): array
+    public function get(string $className): ClassMetadata
     {
         if (is_a($className, Proxy::class, true)) {
             $className = ClassUtils::getRealClass($className);
         }
-        if (false === array_key_exists($className, $this->metadata)) {
+        if (false === isset($this->metadata[$className])) {
             try {
                 $cachedItem = $this->appCache->getItem(self::CACHE_PREFIX . $className);
                 if ($cachedItem->isHit()) {
