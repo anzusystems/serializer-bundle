@@ -37,8 +37,12 @@ final class JsonSerializer
     /**
      * @throws SerializerException
      */
-    public function toArray(object|iterable $data, ?Metadata $metadata = null, SerializationContext $context): array|object
+    public function toArray(object|iterable $data, ?Metadata $metadata = null, ?SerializationContext $context = null): array|object
     {
+        if (null === $context) {
+            $context = SerializationContext::create();
+        }
+
         if (is_iterable($data)) {
             $output = [];
             foreach ($data as $key => $item) {
