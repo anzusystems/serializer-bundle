@@ -109,7 +109,6 @@ final class JsonDeserializer
      */
     private function createObjectInstance(ClassMetadata $objectMetadata, string $className, array $data): object
     {
-        $propMetadata = $objectMetadata->getAll();
         $constructorMetadata = $objectMetadata->getConstructorMetadata();
         if (empty($constructorMetadata)) {
             // initialize object without parameters
@@ -120,38 +119,20 @@ final class JsonDeserializer
         $params = [];
         foreach ($constructorMetadata as $name => $metadata) {
             /** @var Metadata $metadata */
-            if (isset($data[$name]) && isset($propMetadata[$name])) {
-                /** @var Metadata $propMeta */
-                $propMeta = $propMetadata[$name];
-                if ($propMeta->type !== $metadata->type) {
-                    throw new SerializerException(
-                        sprintf(
-                            'Unable to deserialize "%s", required constructor property "%s" cannot be resolved due to different types in property "%s" and in constructor "%s".',
-                            $className,
-                            $name,
-                            $propMeta->type,
-                            $metadata->type,
-                        )
-                    );
-                }
-
-                $dataValue = $data[$name];
-                $value = $this->handlerResolver
-                    ->getDeserializationHandler($dataValue, $propMeta->type, $propMeta->customHandler)
-                    ->deserialize($dataValue, $propMeta);
-
-                $params[] = $value;
-
-                continue;
+            if (false === isset($data[$name])) {
+                throw new SerializerException(
+                    sprintf(
+                        'Unable to deserialize "%s". Required constructor property "%s" missing in data.',
+                        $className,
+                        $name
+                    )
+                );
             }
 
-            throw new SerializerException(
-                sprintf(
-                    'Unable to deserialize "%s". Required constructor property "%s" missing in data or serializable properties.',
-                    $className,
-                    $name
-                )
-            );
+            $dataValue = $data[$name];
+            $params[] = $this->handlerResolver
+                ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
+                ->deserialize($dataValue, $metadata);
         }
 
         return new $className(...$params);

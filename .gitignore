@@ -7,6 +7,7 @@
 
 # Env files
 .env.local
+.env.test
 .env.local.php
 .env.*.local
 

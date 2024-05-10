@@ -56,7 +56,7 @@ final class MetadataFactory
             return [];
         }
 
-        if (!($constructorMethod->getModifiers() & ReflectionMethod::IS_PUBLIC)) {
+        if (0 === ($constructorMethod->getModifiers() & ReflectionMethod::IS_PUBLIC)) {
             // the class has private/protected constructor
             return [];
         }
@@ -70,12 +70,21 @@ final class MetadataFactory
                 continue;
             }
 
-            $dataName = $attribute->serializedName ?? $parameter->getName();
+            $relatedPropertyAttribute = $this->findRelatedClassPropertyAttribute($reflection, $parameter->getName());
+            $dataName = $relatedPropertyAttribute->serializedName ?? $parameter->getName();
+
             $metadata[$dataName] = new Metadata(
                 (string) $parameter->getType(),
                 $parameter->allowsNull(),
                 '',
                 $parameter->getName(),
+                null,
+                $relatedPropertyAttribute->handler,
+                $this->resolveCustomType($attribute),
+                $relatedPropertyAttribute->strategy,
+                $relatedPropertyAttribute->persistedName,
+                $relatedPropertyAttribute->discriminatorMap,
+                orderBy: $relatedPropertyAttribute->orderBy
             );
         }
 
@@ -135,14 +144,17 @@ final class MetadataFactory
         if ($methodType instanceof ReflectionNamedType) {
             $type = $methodType->getName();
         }
+
         if ($methodType instanceof ReflectionUnionType) {
             foreach ($methodType->getTypes() as $returnType) {
-                if ('null' === $returnType->getName()) {
-                    continue;
-                }
-                $type = $returnType->getName();
+                if ($returnType instanceof ReflectionNamedType) {
+                    if ('null' === $returnType->getName()) {
+                        continue;
+                    }
+                    $type = $returnType->getName();
 
-                break;
+                    break;
+                }
             }
         }
 
@@ -175,12 +187,14 @@ final class MetadataFactory
         }
         if ($propertyType instanceof ReflectionUnionType) {
             foreach ($propertyType->getTypes() as $returnType) {
-                if ('null' === $returnType->getName()) {
-                    continue;
-                }
-                $type = $returnType->getName();
+                if ($returnType instanceof ReflectionNamedType) {
+                    if ('null' === $returnType->getName()) {
+                        continue;
+                    }
+                    $type = $returnType->getName();
 
-                break;
+                    break;
+                }
             }
         }
         $getter = $getterPrefix . ucfirst($property->getName());
@@ -238,5 +252,34 @@ final class MetadataFactory
         }
 
         return $attribute->type;
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    private function findRelatedClassPropertyAttribute(ReflectionClass $reflection, string $name): Serialize
+    {
+        foreach ($reflection->getProperties() as $property) {
+            if ($property->getName() !== $name) {
+                continue;
+            }
+
+            $attributes = $property->getAttributes(Serialize::class);
+            if (false === array_key_exists(0, $attributes)) {
+                throw new SerializerException(
+                    sprintf('Required constructor property "%s" is not serializable.', $name)
+                );
+            }
+
+            return $attributes[0]->newInstance();
+        }
+
+        throw new SerializerException(
+            sprintf(
+                'Required constructor property "%s" not found as parameter in the class "%s".',
+                $name,
+                $reflection->getName()
+            )
+        );
     }
 }

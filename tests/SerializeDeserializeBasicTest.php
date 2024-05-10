@@ -4,20 +4,23 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Tests;
 
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use AnzuSystems\SerializerBundle\Tests\Dto\BarDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\FooDto;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Entity\Example;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleBackedEnum;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleUnitEnum;
 use DateTimeImmutable;
-use UnitEnum;
 
 final class SerializeDeserializeBasicTest extends AbstractTestCase
 {
     /**
      * @throws SerializerException
+     *
      * @dataProvider data
      */
-    public function testSerializeBasic(string $json, Example $data): void
+    public function testSerializeBasic(string $json, object $data): void
     {
         $serialized = $this->serializer->serialize($data);
         self::assertEquals($json, $serialized);
@@ -25,9 +28,21 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
 
     /**
      * @throws SerializerException
+     *
+     * @dataProvider dataIgnoreNulls
+     */
+    public function testSerializeIgnoreNulls(string $json, object $data): void
+    {
+        $serialized = $this->serializer->serialize($data, SerializationContext::create()->setSerializeNulls(false));
+        self::assertEquals($json, $serialized);
+    }
+
+    /**
+     * @throws SerializerException
+     *
      * @dataProvider data
      */
-    public function testDeSerializeBasic(string $json, Example $data): void
+    public function testDeSerializeBasic(string $json, object $data): void
     {
         $deserialized = $this->serializer->deserialize($json, $data::class);
         self::assertEquals($data, $deserialized);
@@ -42,7 +57,7 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
                 ->setName('Test name')
                 ->setCreatedAt(new DateTimeImmutable('2023-12-31T12:34:56Z'))
                 ->setPlace(ExampleBackedEnum::First)
-                ->setColor(ExampleUnitEnum::Red)
+                ->setColor(ExampleUnitEnum::Red),
         ];
 
         yield [
@@ -52,7 +67,24 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
                 ->setName('Another')
                 ->setCreatedAt(new DateTimeImmutable('2022-12-31T00:00:00Z'))
                 ->setPlace(ExampleBackedEnum::Second)
-                ->setColor(ExampleUnitEnum::Green)
+                ->setColor(ExampleUnitEnum::Green),
+        ];
+
+        yield [
+            '{"bar":123456,"baz":"bar-bar","bar-dto":{"qux":789333,"quux":"qux-qux"},"corge":"2024-05-10T00:00:00Z","garply":true,"fred":null}',
+            (new FooDto(123_456, 'bar-bar', new BarDto(789_333, 'qux-qux')))
+                ->setCorge(new DateTimeImmutable('2024-05-10T00:00:00Z'))
+                ->setGarply(true),
+        ];
+    }
+
+    public function dataIgnoreNulls(): iterable
+    {
+        yield [
+            '{"bar":123456,"baz":"bar-bar","bar-dto":{"qux":789333,"quux":"qux-qux"},"corge":"2024-05-10T00:00:00Z","garply":true}',
+            (new FooDto(123_456, 'bar-bar', new BarDto(789_333, 'qux-qux')))
+                ->setCorge(new DateTimeImmutable('2024-05-10T00:00:00Z'))
+                ->setGarply(true),
         ];
     }
 }

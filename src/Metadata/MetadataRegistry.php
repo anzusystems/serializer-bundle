@@ -13,7 +13,7 @@ use Psr\Log\LoggerInterface;
 
 final class MetadataRegistry
 {
-    private const CACHE_PREFIX = 'anzu_serlz_';
+    private const CACHE_PREFIX = 'anzu_serialz_';
 
     /**
      * @var array<class-string, ClassMetadata>

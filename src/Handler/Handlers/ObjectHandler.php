@@ -69,11 +69,11 @@ final class ObjectHandler extends AbstractHandler
             $collection = new ArrayCollection();
             foreach ($value as $key => $item) {
                 if (is_array($item)) {
-                    $val = $this->jsonDeserializer->fromArray($item, $this->getDeserializeCustomType($item, $metadata) ?? $metadata->type);
-                } else {
-                    $val = $item;
+                    $collection->set($key, $this->jsonDeserializer->fromArray($item, $this->getDeserializeCustomType($item, $metadata) ?? $metadata->type));
+
+                    continue;
                 }
-                $collection->set($key, $val);
+                $collection->set($key, $item);
             }
 
             return $collection;

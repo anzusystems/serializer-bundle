@@ -6,7 +6,7 @@ namespace AnzuSystems\SerializerBundle\Metadata;
 
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 
-final class ClassMetadata
+final readonly class ClassMetadata
 {
     /**
      * @param array<string, Metadata> $metadata
@@ -23,6 +23,9 @@ final class ClassMetadata
         return isset($this->metadata[$name]);
     }
 
+    /**
+     * @throws SerializerException
+     */
     public function get(string $name): Metadata
     {
         if (!isset($this->metadata[$name])) {
@@ -30,13 +33,6 @@ final class ClassMetadata
         }
 
         return $this->metadata[$name];
-    }
-
-    public function set(string $name, Metadata $metadata): self
-    {
-        $this->metadata[$name] = $metadata;
-
-        return $this;
     }
 
     /**
