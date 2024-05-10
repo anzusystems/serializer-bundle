@@ -23,22 +23,8 @@ final class BazDto
         return $this->qux;
     }
 
-    public function setQux(int $qux): self
-    {
-        $this->qux = $qux;
-
-        return $this;
-    }
-
     public function getQuux(): string
     {
         return $this->quux;
-    }
-
-    public function setQuux(string $quux): self
-    {
-        $this->quux = $quux;
-
-        return $this;
     }
 }
