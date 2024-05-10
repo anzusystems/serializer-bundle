@@ -7,6 +7,7 @@ namespace AnzuSystems\SerializerBundle\Tests;
 use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Tests\Dto\BarDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\BazDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\FooDto;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Entity\Example;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleBackedEnum;
@@ -48,6 +49,21 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
         self::assertEquals($data, $deserialized);
     }
 
+    /**
+     * @throws SerializerException
+     *
+     * @dataProvider dataSerializeOnly
+     */
+    public function testSerializeOnly(string $expectedJson, string $json, object $data): void
+    {
+        $serialized = $this->serializer->serialize($data);
+        self::assertEquals($expectedJson, $serialized);
+
+        $this->expectException(SerializerException::class);
+        $this->expectExceptionMessage('Unable to deserialize "AnzuSystems\SerializerBundle\Tests\Dto\BazDto". Required constructor property "quux" missing in data or serializable properties');
+        $this->serializer->deserialize($json, $data::class);
+    }
+
     public function data(): iterable
     {
         yield [
@@ -85,6 +101,15 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
             (new FooDto(123_456, 'bar-bar', new BarDto(789_333, 'qux-qux')))
                 ->setCorge(new DateTimeImmutable('2024-05-10T00:00:00Z'))
                 ->setGarply(true),
+        ];
+    }
+
+    public function dataSerializeOnly(): iterable
+    {
+        yield [
+            '{"qux":789333}',
+            '{"qux":789333,"quux":"qux-qux"}',
+            (new BazDto(789_333, 'qux-qux')),
         ];
     }
 }

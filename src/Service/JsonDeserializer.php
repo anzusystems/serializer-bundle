@@ -109,6 +109,7 @@ final class JsonDeserializer
      */
     private function createObjectInstance(ClassMetadata $objectMetadata, string $className, array $data): object
     {
+        $propMetadata = $objectMetadata->getAll();
         $constructorMetadata = $objectMetadata->getConstructorMetadata();
         if (empty($constructorMetadata)) {
             // initialize object without parameters
@@ -119,10 +120,10 @@ final class JsonDeserializer
         $params = [];
         foreach ($constructorMetadata as $name => $metadata) {
             /** @var Metadata $metadata */
-            if (false === isset($data[$name])) {
+            if (false === isset($data[$name], $propMetadata[$name])) {
                 throw new SerializerException(
                     sprintf(
-                        'Unable to deserialize "%s". Required constructor property "%s" missing in data.',
+                        'Unable to deserialize "%s". Required constructor property "%s" missing in data or serializable properties.',
                         $className,
                         $name
                     )
