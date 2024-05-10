@@ -61,8 +61,6 @@ final class MetadataFactory
             return [];
         }
 
-        $attribute = new Serialize();
-
         $metadata = [];
         foreach ($constructorMethod->getParameters() as $parameter) {
             if ($parameter->isDefaultValueAvailable()) {
@@ -70,8 +68,14 @@ final class MetadataFactory
                 continue;
             }
 
-            $relatedPropertyAttribute = $this->findRelatedClassPropertyAttribute($reflection, $parameter->getName());
-            $dataName = $relatedPropertyAttribute->serializedName ?? $parameter->getName();
+            $attribute = $this->findRelatedClassPropertyAttribute($reflection, $parameter->getName());
+            if (null === $attribute) {
+                // accept if the constructor has a property that should not be serialized
+                // because the object may only be used for serialization and not deserialization
+                $attribute = new Serialize();
+            }
+
+            $dataName = $attribute->serializedName ?? $parameter->getName();
 
             $metadata[$dataName] = new Metadata(
                 (string) $parameter->getType(),
@@ -79,12 +83,12 @@ final class MetadataFactory
                 '',
                 $parameter->getName(),
                 null,
-                $relatedPropertyAttribute->handler,
+                $attribute->handler,
                 $this->resolveCustomType($attribute),
-                $relatedPropertyAttribute->strategy,
-                $relatedPropertyAttribute->persistedName,
-                $relatedPropertyAttribute->discriminatorMap,
-                orderBy: $relatedPropertyAttribute->orderBy
+                $attribute->strategy,
+                $attribute->persistedName,
+                $attribute->discriminatorMap,
+                orderBy: $attribute->orderBy
             );
         }
 
@@ -257,7 +261,7 @@ final class MetadataFactory
     /**
      * @throws SerializerException
      */
-    private function findRelatedClassPropertyAttribute(ReflectionClass $reflection, string $name): Serialize
+    private function findRelatedClassPropertyAttribute(ReflectionClass $reflection, string $name): ?Serialize
     {
         foreach ($reflection->getProperties() as $property) {
             if ($property->getName() !== $name) {
@@ -266,9 +270,7 @@ final class MetadataFactory
 
             $attributes = $property->getAttributes(Serialize::class);
             if (false === array_key_exists(0, $attributes)) {
-                throw new SerializerException(
-                    sprintf('Required constructor property "%s" is not serializable.', $name)
-                );
+                return null;
             }
 
             return $attributes[0]->newInstance();
