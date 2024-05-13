@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use Symfony\Component\PropertyInfo\Type;
 
 final class ArrayStringHandler extends AbstractHandler
 {
-    public function serialize(mixed $value, Metadata $metadata): string
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): string
     {
         if (is_array($value)) {
             return implode(',', $value);

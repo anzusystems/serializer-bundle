@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
 use AnzuSystems\SerializerBundle\AnzuSystemsSerializerBundle;
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
@@ -23,7 +24,7 @@ interface HandlerInterface
     /**
      * @throws SerializerException
      */
-    public function serialize(mixed $value, Metadata $metadata): mixed;
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): mixed;
 
     /**
      * @throws SerializerException

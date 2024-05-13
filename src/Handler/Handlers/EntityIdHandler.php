@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Helper\SerializerHelper;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
@@ -24,7 +25,7 @@ final class EntityIdHandler extends AbstractHandler
     ) {
     }
 
-    public function serialize(mixed $value, Metadata $metadata): array|object|int|null|string
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): array|object|int|null|string
     {
         if (null === $value) {
             return null;
@@ -44,7 +45,7 @@ final class EntityIdHandler extends AbstractHandler
         }
         if ($value instanceof Collection) {
             $ids = $value->map($toIdFunction);
-            if ($metadata->orderBy) {
+            if (null !== $metadata->orderBy) {
                 $ids = $this->getOrderedIDs($ids->getValues(), $metadata);
             }
             if (Serialize::KEYS_VALUES === $metadata->strategy) {

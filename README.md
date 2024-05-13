@@ -132,6 +132,7 @@ To create a custom handler, simply extend the `AnzuSystems\SerializerBundle\Hand
 For instance in the following example a Geolocation class is converted to/from array:
 
 ```php
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Handler\Handlers\AbstractHandler;
 
 final class GeolocationHandler extends AbstractHandler
@@ -139,7 +140,7 @@ final class GeolocationHandler extends AbstractHandler
     /**
      * @param Geolocation $value
      */
-    public function serialize(mixed $value, Metadata $metadata): array
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): string): array
     {
         return [
             'lat' => $value->getLatitude(),

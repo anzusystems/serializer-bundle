@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use DateTime;
@@ -27,7 +28,7 @@ final class DateTimeHandler extends AbstractHandler
     /**
      * @param DateTimeInterface $value
      */
-    public function serialize(mixed $value, Metadata $metadata): string
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): string
     {
         return $value->format($metadata->customType ?? $this->serializerDateFormat);
     }

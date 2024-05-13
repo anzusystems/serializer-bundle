@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use Symfony\Component\PropertyInfo\Type;
 use Symfony\Component\Uid\AbstractUid;
@@ -21,7 +22,7 @@ final class UuidHandler extends AbstractHandler
     /**
      * @param Uuid $value
      */
-    public function serialize(mixed $value, Metadata $metadata): string
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): string
     {
         return $value->toRfc4122();
     }

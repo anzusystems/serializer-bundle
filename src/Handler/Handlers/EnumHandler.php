@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
@@ -21,7 +22,7 @@ final class EnumHandler extends AbstractHandler
     /**
      * @param UnitEnum $value
      */
-    public function serialize(mixed $value, Metadata $metadata): int|string
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): int|string
     {
         if ($value instanceof BackedEnum) {
             return $value->value;

@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Tests;
 
-use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Entity\Example;
-use DateTimeImmutable;
 
 final class SerializerValidationExceptionTest extends AbstractTestCase
 {

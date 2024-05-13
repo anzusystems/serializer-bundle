@@ -11,9 +11,10 @@
         }
     ],
     "require": {
-        "php": ">=8.1",
+        "php": ">=8.2",
         "ext-json": "*",
-        "doctrine/common": "^3.3"
+        "doctrine/common": "^3.3",
+        "symfony/property-info": "^6.3|^7.0"
     },
     "require-dev": {
         "doctrine/doctrine-bundle": "^2.10",

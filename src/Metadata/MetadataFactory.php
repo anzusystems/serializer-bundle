@@ -28,21 +28,71 @@ final class MetadataFactory
      *
      * @throws SerializerException
      */
-    public function buildMetadata(string $className): array
+    public function buildMetadata(string $className): ClassMetadata
     {
         try {
             $reflection = new ReflectionClass($className);
-            if ((int) $reflection->getConstructor()?->getNumberOfRequiredParameters() > 0) {
-                throw new SerializerException('Required constructor parameters found in ' . $className);
-            }
         } catch (ReflectionException $exception) {
             throw new SerializerException('Cannot create reflection for ' . $className, 0, $exception);
         }
 
-        return array_merge(
-            $this->buildPropertyMetadata($reflection),
-            $this->buildMethodMetadata($reflection)
+        return new ClassMetadata(
+            array_merge(
+                $this->buildPropertyMetadata($reflection),
+                $this->buildMethodMetadata($reflection)
+            ),
+            $this->buildConstructorMetadata($reflection),
         );
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    private function buildConstructorMetadata(ReflectionClass $reflection): array
+    {
+        $constructorMethod = $reflection->getConstructor();
+        if (null === $constructorMethod) {
+            // the class has no constructor
+            return [];
+        }
+
+        if (0 === ($constructorMethod->getModifiers() & ReflectionMethod::IS_PUBLIC)) {
+            // the class has private/protected constructor
+            return [];
+        }
+
+        $metadata = [];
+        foreach ($constructorMethod->getParameters() as $parameter) {
+            if ($parameter->isDefaultValueAvailable()) {
+                // we will use only the required parameters
+                continue;
+            }
+
+            $attribute = $this->findRelatedClassPropertyAttribute($reflection, $parameter->getName());
+            if (null === $attribute) {
+                // accept if the constructor has a property that should not be serialized
+                // because the object may only be used for serialization and not deserialization
+                $attribute = new Serialize();
+            }
+
+            $dataName = $attribute->serializedName ?? $parameter->getName();
+
+            $metadata[$dataName] = new Metadata(
+                (string) $parameter->getType(),
+                $parameter->allowsNull(),
+                '',
+                $parameter->getName(),
+                null,
+                $attribute->handler,
+                $this->resolveCustomType($attribute),
+                $attribute->strategy,
+                $attribute->persistedName,
+                $attribute->discriminatorMap,
+                orderBy: $attribute->orderBy
+            );
+        }
+
+        return $metadata;
     }
 
     /**
@@ -73,6 +123,7 @@ final class MetadataFactory
         $metadata = [];
         foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
             $attributes = $method->getAttributes(Serialize::class);
+
             if (false === array_key_exists(0, $attributes)) {
                 continue;
             }
@@ -97,14 +148,17 @@ final class MetadataFactory
         if ($methodType instanceof ReflectionNamedType) {
             $type = $methodType->getName();
         }
+
         if ($methodType instanceof ReflectionUnionType) {
             foreach ($methodType->getTypes() as $returnType) {
-                if ('null' === $returnType->getName()) {
-                    continue;
-                }
-                $type = $returnType->getName();
+                if ($returnType instanceof ReflectionNamedType) {
+                    if ('null' === $returnType->getName()) {
+                        continue;
+                    }
+                    $type = $returnType->getName();
 
-                break;
+                    break;
+                }
             }
         }
 
@@ -137,21 +191,31 @@ final class MetadataFactory
         }
         if ($propertyType instanceof ReflectionUnionType) {
             foreach ($propertyType->getTypes() as $returnType) {
-                if ('null' === $returnType->getName()) {
-                    continue;
-                }
-                $type = $returnType->getName();
+                if ($returnType instanceof ReflectionNamedType) {
+                    if ('null' === $returnType->getName()) {
+                        continue;
+                    }
+                    $type = $returnType->getName();
 
-                break;
+                    break;
+                }
             }
         }
         $getter = $getterPrefix . ucfirst($property->getName());
-        if (false === $property->getDeclaringClass()->hasMethod($getter)) {
-            throw new SerializerException('Getter method ' . $getter . ' not found in ' . $property->getDeclaringClass()->getName() . '.');
+        $declaringClass = $property->getDeclaringClass();
+        if (false === $declaringClass->hasMethod($getter)) {
+            // fallback to "get" prefix
+            $getterFallback = 'get' . ucfirst($property->getName());
+            if (false === $declaringClass->hasMethod($getterFallback)) {
+                throw new SerializerException('Getter method ' . $getter . ' or ' . $getterFallback . ' not found in ' . $declaringClass->getName() . '.');
+            }
+
+            $getter = $getterFallback;
         }
         $setter = 'set' . ucfirst($property->getName());
-        if (false === $property->getDeclaringClass()->hasMethod($getter)) {
-            throw new SerializerException('Setter method ' . $setter . ' not found in ' . $property->getDeclaringClass()->getName() . '.');
+        if (false === $declaringClass->hasMethod($setter)) {
+            // setter is required for deserialization only
+            $setter = null;
         }
 
         return new Metadata(
@@ -174,6 +238,10 @@ final class MetadataFactory
      */
     private function resolveCustomType(Serialize $attribute): ?string
     {
+        if ('' === $attribute->type) {
+            return null;
+        }
+
         if ($attribute->type instanceof ContainerParam) {
             $paramName = $attribute->type->paramName;
             if ($this->parameterBag->has($paramName)) {
@@ -188,5 +256,32 @@ final class MetadataFactory
         }
 
         return $attribute->type;
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    private function findRelatedClassPropertyAttribute(ReflectionClass $reflection, string $name): ?Serialize
+    {
+        foreach ($reflection->getProperties() as $property) {
+            if ($property->getName() !== $name) {
+                continue;
+            }
+
+            $attributes = $property->getAttributes(Serialize::class);
+            if (false === array_key_exists(0, $attributes)) {
+                return null;
+            }
+
+            return $attributes[0]->newInstance();
+        }
+
+        throw new SerializerException(
+            sprintf(
+                'Required constructor property "%s" not found as parameter in the class "%s".',
+                $name,
+                $reflection->getName()
+            )
+        );
     }
 }
