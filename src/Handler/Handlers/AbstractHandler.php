@@ -32,10 +32,14 @@ abstract class AbstractHandler implements HandlerInterface
 
     public function describe(string $property, Metadata $metadata): array
     {
+        $type = SerializerHelper::getOaFriendlyType($metadata->type);
         $description = [
             'property' => $property,
-            'type' => SerializerHelper::getOaFriendlyType($metadata->type),
+            'type' => $type,
         ];
+        if (Type::BUILTIN_TYPE_FLOAT === $metadata->type) {
+            $description['format'] = 'float';
+        }
         if (null === $metadata->setter) {
             $description['readOnly'] = true;
         }
