@@ -13,6 +13,7 @@ final class SerializerHelper
         return match ($type) {
             Type::BUILTIN_TYPE_INT => 'integer',
             Type::BUILTIN_TYPE_BOOL => 'boolean',
+            Type::BUILTIN_TYPE_FLOAT => 'number',
             default => $type,
         };
     }
