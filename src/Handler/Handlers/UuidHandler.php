@@ -57,6 +57,7 @@ final class UuidHandler extends AbstractHandler
         $description = parent::describe($property, $metadata);
         $description['type'] = Type::BUILTIN_TYPE_STRING;
         $description['title'] = 'UUID';
+        $description['format'] = 'uuid';
 
         return $description;
     }
