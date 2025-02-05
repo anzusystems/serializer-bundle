@@ -43,4 +43,19 @@ final class ArrayStringHandler extends AbstractHandler
             default => fn (string $item): string => trim($item),
         };
     }
+
+    public static function supportsDescribe(string $property, Metadata $metadata): bool
+    {
+        return is_a($metadata->customHandler, self::class, true);
+    }
+
+    public function describe(string $property, Metadata $metadata): array
+    {
+        $description = parent::describe($property, $metadata);
+        $description['type'] = Type::BUILTIN_TYPE_STRING;
+        $description['format'] = 'string, values separated by comma';
+        unset($description['items']);
+
+        return $description;
+    }
 }
