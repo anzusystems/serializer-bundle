@@ -19,6 +19,7 @@ use ReflectionException;
 use ReflectionMethod;
 use ReflectionProperty;
 use Symfony\Component\PropertyInfo\Type;
+use const PHP_EOL;
 
 final class SerializerModelDescriber implements ModelDescriberInterface
 {
@@ -51,7 +52,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
 
             // Describe nested object.
             if (isset($description[self::NESTED_CLASS])) {
-                $nestedSchema = $this->describeNested($propertyName, $description[self::NESTED_CLASS]);
+                $nestedSchema = $this->describeNested($propertyName, $description);
                 if ($nestedSchema) {
                     $properties[] = $nestedSchema;
 
@@ -126,12 +127,15 @@ final class SerializerModelDescriber implements ModelDescriberInterface
     /**
      * @throws ReflectionException | SerializerException
      */
-    private function describeNested(string $property, string $className): ?Property
+    private function describeNested(string $property, array $description): ?Property
     {
+        $className = $description[self::NESTED_CLASS];
         $nestedModel = new Model(new Type(Type::BUILTIN_TYPE_OBJECT, class: $className));
         $nestedSchema = new Property([
             'property' => $property,
             'title' => SerializerHelper::getClassBaseName($className),
+            'readOnly' => $description['readOnly'] ?? false,
+            'nullable' => $description['nullable'] ?? false,
         ]);
         if ($this->supports($nestedModel)) {
             $this->describe($nestedModel, $nestedSchema);

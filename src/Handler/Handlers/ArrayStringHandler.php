@@ -35,15 +35,6 @@ final class ArrayStringHandler extends AbstractHandler
         throw new SerializerException('Unsupported value for ' . self::class . '::' . __FUNCTION__);
     }
 
-    private function getDeserializeFunction(Metadata $metadata): \Closure
-    {
-        return match ($metadata->type) {
-            Type::BUILTIN_TYPE_INT => fn (string $item): int => (int) $item,
-            Type::BUILTIN_TYPE_FLOAT => fn (string $item): float => (float) $item,
-            default => fn (string $item): string => trim($item),
-        };
-    }
-
     public static function supportsDescribe(string $property, Metadata $metadata): bool
     {
         return is_a($metadata->customHandler, self::class, true);
@@ -57,5 +48,14 @@ final class ArrayStringHandler extends AbstractHandler
         unset($description['items']);
 
         return $description;
+    }
+
+    private function getDeserializeFunction(Metadata $metadata): \Closure
+    {
+        return match ($metadata->type) {
+            Type::BUILTIN_TYPE_INT => fn (string $item): int => (int) $item,
+            Type::BUILTIN_TYPE_FLOAT => fn (string $item): float => (float) $item,
+            default => fn (string $item): string => trim($item),
+        };
     }
 }
