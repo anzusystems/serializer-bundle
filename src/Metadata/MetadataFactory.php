@@ -15,6 +15,7 @@ use ReflectionProperty;
 use ReflectionUnionType;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\PropertyInfo\Type;
+use const PHP_VERSION;
 
 final class MetadataFactory
 {
@@ -171,7 +172,7 @@ final class MetadataFactory
             $attribute->handler,
             $this->resolveCustomType($attribute),
             $attribute->strategy,
-            orderBy: $attribute->orderBy
+            orderBy: $attribute->orderBy,
         );
     }
 
@@ -201,21 +202,34 @@ final class MetadataFactory
                 }
             }
         }
-        $getter = $getterPrefix . ucfirst($property->getName());
-        $declaringClass = $property->getDeclaringClass();
-        if (false === $declaringClass->hasMethod($getter)) {
-            // fallback to "get" prefix
-            $getterFallback = 'get' . ucfirst($property->getName());
-            if (false === $declaringClass->hasMethod($getterFallback)) {
-                throw new SerializerException('Getter method ' . $getter . ' or ' . $getterFallback . ' not found in ' . $declaringClass->getName() . '.');
+        $getter = $setter = null;
+        $getterSetterStrategy = true;
+        if (version_compare(PHP_VERSION, '8.4.0', '>=') && $property->hasHooks()) {
+            $getterSetterStrategy = false;
+            if ($property->hasHook(\PropertyHookType::Get)) {
+                $getter = $property->getName();
             }
-
-            $getter = $getterFallback;
+            if ($property->hasHook(\PropertyHookType::Set)) {
+                $setter = $property->getName();
+            }
         }
-        $setter = 'set' . ucfirst($property->getName());
-        if (false === $declaringClass->hasMethod($setter)) {
-            // setter is required for deserialization only
-            $setter = null;
+        if ($getterSetterStrategy) {
+            $getter = $getterPrefix . ucfirst($property->getName());
+            $declaringClass = $property->getDeclaringClass();
+            if (false === $declaringClass->hasMethod($getter)) {
+                // fallback to "get" prefix
+                $getterFallback = 'get' . ucfirst($property->getName());
+                if (false === $declaringClass->hasMethod($getterFallback)) {
+                    throw new SerializerException('Getter method ' . $getter . ' or ' . $getterFallback . ' not found in ' . $declaringClass->getName() . '.');
+                }
+
+                $getter = $getterFallback;
+            }
+            $setter = 'set' . ucfirst($property->getName());
+            if (false === $declaringClass->hasMethod($setter)) {
+                // setter is required for deserialization only
+                $setter = null;
+            }
         }
 
         return new Metadata(
@@ -229,7 +243,8 @@ final class MetadataFactory
             $attribute->strategy,
             $attribute->persistedName,
             $attribute->discriminatorMap,
-            orderBy: $attribute->orderBy
+            orderBy: $attribute->orderBy,
+            getterSetterStrategy: $getterSetterStrategy,
         );
     }
 
