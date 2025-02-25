@@ -206,9 +206,11 @@ final class MetadataFactory
         $getterSetterStrategy = true;
         if (version_compare(PHP_VERSION, '8.4.0', '>=') && $property->hasHooks()) {
             $getterSetterStrategy = false;
+            /** @psalm-suppress UndefinedClass */
             if ($property->hasHook(\PropertyHookType::Get)) {
                 $getter = $property->getName();
             }
+            /** @psalm-suppress UndefinedClass */
             if ($property->hasHook(\PropertyHookType::Set)) {
                 $setter = $property->getName();
             }
