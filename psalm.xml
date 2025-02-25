@@ -24,6 +24,7 @@
     <issueHandlers>
         <MoreSpecificImplementedParamType errorLevel="suppress"/>
         <RiskyTruthyFalsyComparison errorLevel="suppress"/>
+        <MissingOverrideAttribute errorLevel="suppress"/>
         <UnnecessaryVarAnnotation errorLevel="suppress"/> <!-- PHPStorm doesn't understand to generics annotations yet -->
 
         <UnusedFunctionCall>

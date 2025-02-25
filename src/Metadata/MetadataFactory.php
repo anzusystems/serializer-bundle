@@ -131,7 +131,7 @@ final class MetadataFactory
             /** @var Serialize $attribute */
             $attribute = $attributes[0]->newInstance();
             $dataName = $attribute->serializedName
-                ?? lcfirst(preg_replace('~^[get|is]*(.+)~', '$1', $method->getName()))
+                ?? lcfirst((string) preg_replace('~^[get|is]*(.+)~', '$1', $method->getName()))
             ;
             $metadata[$dataName] = $this->getMethodMetadata($method, $attribute);
         }
@@ -235,7 +235,7 @@ final class MetadataFactory
         return new Metadata(
             $type,
             (bool) $propertyType?->allowsNull(),
-            $getter,
+            (string) $getter,
             $property->getName(),
             $setter,
             $attribute->handler,

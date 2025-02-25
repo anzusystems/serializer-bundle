@@ -82,11 +82,13 @@ final class ObjectHandler extends AbstractHandler
             if ($metadata->customType || $metadata->discriminatorMap) {
                 $array = [];
                 foreach ($value as $key => $item) {
+                    /** @psalm-suppress ArgumentTypeCoercion */
                     $array[$key] = $this->jsonDeserializer->fromArray($item, $this->getDeserializeCustomType($item, $metadata) ?? $metadata->type);
                 }
 
                 return $array;
             }
+
             return $value;
         }
 
