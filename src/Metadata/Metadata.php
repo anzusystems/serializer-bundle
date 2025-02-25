@@ -24,6 +24,7 @@ final class Metadata
         public ?string $persistedName = null,
         public ?array $discriminatorMap = null,
         public ?array $orderBy = null,
+        public bool $getterSetterStrategy = true,
     ) {
     }
 }

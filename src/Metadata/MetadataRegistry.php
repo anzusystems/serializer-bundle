@@ -39,7 +39,7 @@ final class MetadataRegistry
         }
         if (false === isset($this->metadata[$className])) {
             try {
-                $cachedItem = $this->appCache->getItem(self::CACHE_PREFIX . $className);
+                $cachedItem = $this->appCache->getItem($this->getCacheKey($className));
                 if ($cachedItem->isHit()) {
                     $this->metadata[$className] = $cachedItem->get();
 
@@ -54,5 +54,10 @@ final class MetadataRegistry
         }
 
         return $this->metadata[$className];
+    }
+
+    private function getCacheKey(string $className): string
+    {
+        return self::CACHE_PREFIX . str_replace('\\', '_', $className);
     }
 }
