@@ -226,9 +226,9 @@ final class MetadataFactory
         }
         if ($property->isPublic()) {
             $getterSetterStrategy = false;
-            $getter = $property->getName();
-            if (version_compare(PHP_VERSION, '8.4.0', '>=') && false === $property->isPrivateSet()) {
-                $setter = $property->getName();
+            $getter = $setter = $property->getName();
+            if (version_compare(PHP_VERSION, '8.4.0', '>=') && $property->isPrivateSet()) {
+                $setter = null;
             }
         }
         if ($getterSetterStrategy) {
