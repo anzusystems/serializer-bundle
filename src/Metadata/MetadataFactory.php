@@ -37,19 +37,21 @@ final class MetadataFactory
             throw new SerializerException('Cannot create reflection for ' . $className, 0, $exception);
         }
 
+        $propertyMetadata = $this->buildPropertyMetadata($reflection);
+
         return new ClassMetadata(
             array_merge(
-                $this->buildPropertyMetadata($reflection),
+                $propertyMetadata,
                 $this->buildMethodMetadata($reflection)
             ),
-            $this->buildConstructorMetadata($reflection),
+            $this->buildConstructorMetadata($propertyMetadata, $reflection),
         );
     }
 
     /**
      * @throws SerializerException
      */
-    private function buildConstructorMetadata(ReflectionClass $reflection): array
+    private function buildConstructorMetadata(array $propertyMetadata, ReflectionClass $reflection): array
     {
         $constructorMethod = $reflection->getConstructor();
         if (null === $constructorMethod) {
@@ -64,12 +66,8 @@ final class MetadataFactory
 
         $metadata = [];
         foreach ($constructorMethod->getParameters() as $parameter) {
-            if ($parameter->isDefaultValueAvailable()) {
-                // we will use only the required parameters
-                continue;
-            }
-
             $attribute = $this->findRelatedClassPropertyAttribute($reflection, $parameter->getName());
+
             if (null === $attribute) {
                 // accept if the constructor has a property that should not be serialized
                 // because the object may only be used for serialization and not deserialization
@@ -77,6 +75,17 @@ final class MetadataFactory
             }
 
             $dataName = $attribute->serializedName ?? $parameter->getName();
+            $propertyMeta = $propertyMetadata[$dataName] ?? null;
+            if ($parameter->isPromoted() && $propertyMeta) {
+                $metadata[$dataName] = $propertyMeta;
+
+                continue;
+            }
+
+            if ($parameter->isDefaultValueAvailable()) {
+                // we will use only the required parameters
+                continue;
+            }
 
             $metadata[$dataName] = new Metadata(
                 (string) $parameter->getType(),
@@ -89,7 +98,7 @@ final class MetadataFactory
                 $attribute->strategy,
                 $attribute->persistedName,
                 $attribute->discriminatorMap,
-                orderBy: $attribute->orderBy
+                orderBy: $attribute->orderBy,
             );
         }
 
@@ -213,6 +222,13 @@ final class MetadataFactory
             /** @psalm-suppress UndefinedClass */
             if ($property->hasHook(\PropertyHookType::Set)) {
                 $setter = $property->getName();
+            }
+        }
+        if ($property->isPublic()) {
+            $getterSetterStrategy = false;
+            $getter = $setter = $property->getName();
+            if (version_compare(PHP_VERSION, '8.4.0', '>=') && $property->isPrivateSet()) {
+                $setter = null;
             }
         }
         if ($getterSetterStrategy) {

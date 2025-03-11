@@ -73,7 +73,10 @@ final class SerializerModelDescriber implements ModelDescriberInterface
             // Method docBlock description.
             if (null === $metadata->setter && null !== $model->getType()->getClassName()) {
                 /** @psalm-suppress ArgumentTypeCoercion */
-                $methodReflection = new ReflectionMethod($model->getType()->getClassName(), $metadata->getter);
+                $methodReflection = $metadata->getterSetterStrategy
+                    ? new ReflectionMethod($model->getType()->getClassName(), $metadata->getter)
+                    : new ReflectionProperty($model->getType()->getClassName(), $metadata->getter)
+                ;
                 $this->addDocBlockDescription($methodReflection, $property);
             }
 
