@@ -54,7 +54,7 @@ final class ObjectHandler extends AbstractHandler
 
     public static function supportsDeserialize(mixed $value, string $type): bool
     {
-        return is_array($value);
+        return is_array($value) || ($value instanceof \stdClass && $type === Type::BUILTIN_TYPE_ARRAY);
     }
 
     /**
@@ -64,6 +64,9 @@ final class ObjectHandler extends AbstractHandler
      */
     public function deserialize(mixed $value, Metadata $metadata): object|iterable
     {
+        if ($value instanceof \stdClass && Type::BUILTIN_TYPE_ARRAY === $metadata->type) {
+            return (array) $value;
+        }
         if (is_a($metadata->type, Collection::class, true)) {
             /** @var Collection<int|string, iterable|object> $collection */
             $collection = new ArrayCollection();
