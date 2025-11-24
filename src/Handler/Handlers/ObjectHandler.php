@@ -54,7 +54,7 @@ final class ObjectHandler extends AbstractHandler
 
     public static function supportsDeserialize(mixed $value, string $type): bool
     {
-        return is_array($value) || ($value instanceof \stdClass && $type === Type::BUILTIN_TYPE_ARRAY);
+        return is_array($value) || ($value instanceof \stdClass && Type::BUILTIN_TYPE_ARRAY === $type);
     }
 
     /**
