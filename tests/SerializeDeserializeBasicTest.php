@@ -13,14 +13,14 @@ use AnzuSystems\SerializerBundle\Tests\TestApp\Entity\Example;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleBackedEnum;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleUnitEnum;
 use DateTimeImmutable;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class SerializeDeserializeBasicTest extends AbstractTestCase
 {
     /**
      * @throws SerializerException
-     *
-     * @dataProvider data
      */
+    #[DataProvider('data')]
     public function testSerializeBasic(string $json, object $data): void
     {
         $serialized = $this->serializer->serialize($data);
@@ -29,9 +29,8 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
 
     /**
      * @throws SerializerException
-     *
-     * @dataProvider dataIgnoreNulls
      */
+    #[DataProvider('dataIgnoreNulls')]
     public function testSerializeIgnoreNulls(string $json, object $data): void
     {
         $serialized = $this->serializer->serialize($data, SerializationContext::create()->setSerializeNulls(false));
@@ -40,9 +39,8 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
 
     /**
      * @throws SerializerException
-     *
-     * @dataProvider data
      */
+    #[DataProvider('data')]
     public function testDeSerializeBasic(string $json, object $data): void
     {
         $deserialized = $this->serializer->deserialize($json, $data::class);
@@ -51,9 +49,8 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
 
     /**
      * @throws SerializerException
-     *
-     * @dataProvider dataSerializeOnly
      */
+    #[DataProvider('dataSerializeOnly')]
     public function testSerializeOnly(string $expectedJson, string $json, object $data): void
     {
         $serialized = $this->serializer->serialize($data);
@@ -64,7 +61,7 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
         $this->serializer->deserialize($json, $data::class);
     }
 
-    public function data(): iterable
+    public static function data(): iterable
     {
         yield [
             '{"id":1,"name":"Test name","createdAt":"2023-12-31T12:34:56Z","place":"first","color":"Red"}',
@@ -94,7 +91,7 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
         ];
     }
 
-    public function dataIgnoreNulls(): iterable
+    public static function dataIgnoreNulls(): iterable
     {
         yield [
             '{"bar":123456,"baz":"bar-bar","bar-dto":{"qux":789333,"quux":"qux-qux"},"corge":"2024-05-10T00:00:00Z","garply":true}',
@@ -104,7 +101,7 @@ final class SerializeDeserializeBasicTest extends AbstractTestCase
         ];
     }
 
-    public function dataSerializeOnly(): iterable
+    public static function dataSerializeOnly(): iterable
     {
         yield [
             '{"qux":789333}',

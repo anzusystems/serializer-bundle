@@ -17,10 +17,10 @@
         "symfony/property-info": "^6.3|^7.0"
     },
     "require-dev": {
-        "doctrine/doctrine-bundle": "^2.10",
-        "doctrine/orm": "^2.13",
+        "doctrine/doctrine-bundle": "^2.18",
+        "doctrine/orm": "^3.5",
         "nelmio/api-doc-bundle": "^4.13",
-        "slevomat/coding-standard": "^8.14",
+        "slevomat/coding-standard": "8.22",
         "symfony/dotenv": "^6.3|^7.0",
         "symfony/test-pack": "^1.1",
         "symfony/uid": "^6.3|^7.0",
