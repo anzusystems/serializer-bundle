@@ -14,12 +14,12 @@
         "php": ">=8.3",
         "ext-json": "*",
         "doctrine/common": "^3.3",
+        "nelmio/api-doc-bundle": "^5.9",
         "symfony/property-info": "^6.3|^7.0"
     },
     "require-dev": {
         "doctrine/doctrine-bundle": "^2.18",
         "doctrine/orm": "^3.5",
-        "nelmio/api-doc-bundle": "^4.13",
         "slevomat/coding-standard": "8.22",
         "symfony/dotenv": "^6.3|^7.0",
         "symfony/test-pack": "^1.1",
