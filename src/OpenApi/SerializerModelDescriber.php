@@ -89,7 +89,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
     {
         if (null === $this->symfonyConstraintAnnotationReader) {
             /** @psalm-suppress NullArgument */
-            $this->symfonyConstraintAnnotationReader = new SymfonyConstraintAnnotationReader(null);
+            $this->symfonyConstraintAnnotationReader = new SymfonyConstraintAnnotationReader();
         }
 
         return $this->symfonyConstraintAnnotationReader;
