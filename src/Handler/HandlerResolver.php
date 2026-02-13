@@ -11,11 +11,11 @@ use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 
-final class HandlerResolver
+final readonly class HandlerResolver
 {
     public function __construct(
-        private readonly ContainerInterface $handlerLocator,
-        private readonly array $handlers,
+        private ContainerInterface $handlerLocator,
+        private array $handlers,
     ) {
     }
 

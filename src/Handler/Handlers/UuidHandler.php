@@ -6,7 +6,7 @@ namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
 use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
-use Symfony\Component\PropertyInfo\Type;
+use Symfony\Component\TypeInfo\TypeIdentifier;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\MaxUuid;
 use Symfony\Component\Uid\NilUuid;
@@ -55,7 +55,7 @@ final class UuidHandler extends AbstractHandler
     public function describe(string $property, Metadata $metadata): array
     {
         $description = parent::describe($property, $metadata);
-        $description['type'] = Type::BUILTIN_TYPE_STRING;
+        $description['type'] = TypeIdentifier::STRING->value;
         $description['title'] = 'UUID';
         $description['format'] = 'uuid';
 

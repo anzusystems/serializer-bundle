@@ -15,7 +15,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;
-use Symfony\Component\PropertyInfo\Type;
+use Symfony\Component\TypeInfo\TypeIdentifier;
 use Symfony\Component\Uid\Uuid;
 
 final class EntityIdHandler extends AbstractHandler
@@ -98,8 +98,8 @@ final class EntityIdHandler extends AbstractHandler
     {
         $description = parent::describe($property, $metadata);
         if (is_a($metadata->type, Collection::class, true)
-            || Type::BUILTIN_TYPE_ARRAY === $metadata->type) {
-            $description['type'] = Type::BUILTIN_TYPE_ARRAY;
+            || TypeIdentifier::ARRAY->value === $metadata->type) {
+            $description['type'] = TypeIdentifier::ARRAY->value;
             $description['title'] = SerializerHelper::getClassBaseName((string) $metadata->customType) . ' IDs';
             $description['items'] = ['type' => $this->describeReturnType((string) $metadata->customType)];
 

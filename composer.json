@@ -15,7 +15,7 @@
         "ext-json": "*",
         "doctrine/common": "^3.3",
         "nelmio/api-doc-bundle": "^5.9",
-        "symfony/property-info": "^6.3|^7.0"
+        "symfony/type-info": "^7.0|^8.0"
     },
     "require-dev": {
         "doctrine/doctrine-bundle": "^2.18",
