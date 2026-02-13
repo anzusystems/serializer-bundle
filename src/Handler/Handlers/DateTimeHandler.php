@@ -11,7 +11,7 @@ use DateTime;
 use DateTimeImmutable;
 use DateTimeInterface;
 use DateTimeZone;
-use Symfony\Component\PropertyInfo\Type;
+use Symfony\Component\TypeInfo\TypeIdentifier;
 
 final class DateTimeHandler extends AbstractHandler
 {
@@ -66,7 +66,7 @@ final class DateTimeHandler extends AbstractHandler
     public function describe(string $property, Metadata $metadata): array
     {
         $description = parent::describe($property, $metadata);
-        $description['type'] = Type::BUILTIN_TYPE_STRING;
+        $description['type'] = TypeIdentifier::STRING->value;
         $description['format'] = 'date-time, format: "' . ($metadata->customType ?? $this->serializerDateFormat) . '"';
 
         return $description;

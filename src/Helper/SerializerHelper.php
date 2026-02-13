@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Helper;
 
-use Symfony\Component\PropertyInfo\Type;
+use Symfony\Component\TypeInfo\TypeIdentifier;
 
 final class SerializerHelper
 {
     public static function getOaFriendlyType(string $type): string
     {
         return match ($type) {
-            Type::BUILTIN_TYPE_INT => 'integer',
-            Type::BUILTIN_TYPE_BOOL => 'boolean',
-            Type::BUILTIN_TYPE_FLOAT => 'number',
+            TypeIdentifier::INT->value => 'integer',
+            TypeIdentifier::BOOL->value => 'boolean',
+            TypeIdentifier::FLOAT->value => 'number',
             default => $type,
         };
     }

@@ -14,13 +14,13 @@ use ReflectionNamedType;
 use ReflectionProperty;
 use ReflectionUnionType;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
-use Symfony\Component\PropertyInfo\Type;
+use Symfony\Component\TypeInfo\TypeIdentifier;
 use const PHP_VERSION;
 
-final class MetadataFactory
+final readonly class MetadataFactory
 {
     public function __construct(
-        private readonly ParameterBagInterface $parameterBag
+        private ParameterBagInterface $parameterBag
     ) {
     }
 
@@ -195,7 +195,7 @@ final class MetadataFactory
         $type = '';
         if ($propertyType instanceof ReflectionNamedType) {
             $type = $propertyType->getName();
-            if (Type::BUILTIN_TYPE_BOOL === $type) {
+            if (TypeIdentifier::BOOL->value === $type) {
                 $getterPrefix = 'is';
             }
         }

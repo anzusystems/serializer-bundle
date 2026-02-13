@@ -6,7 +6,7 @@ namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
 use AnzuSystems\SerializerBundle\Helper\SerializerHelper;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
-use Symfony\Component\PropertyInfo\Type;
+use Symfony\Component\TypeInfo\TypeIdentifier;
 
 abstract class AbstractHandler implements HandlerInterface
 {
@@ -36,7 +36,7 @@ abstract class AbstractHandler implements HandlerInterface
             'property' => $property,
             'type' => SerializerHelper::getOaFriendlyType($metadata->type),
         ];
-        if (Type::BUILTIN_TYPE_FLOAT === $metadata->type) {
+        if (TypeIdentifier::FLOAT->value === $metadata->type) {
             $description['format'] = 'float';
         }
         if (null === $metadata->setter) {
@@ -45,7 +45,7 @@ abstract class AbstractHandler implements HandlerInterface
         if ($metadata->isNullable) {
             $description['nullable'] = true;
         }
-        if (Type::BUILTIN_TYPE_ARRAY === $metadata->type) {
+        if (TypeIdentifier::ARRAY->value === $metadata->type) {
             $itemType = [];
             if (null !== $metadata->customType && '' !== $metadata->customType) {
                 $itemType = ['type' => $metadata->customType];
