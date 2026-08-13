@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Tests\TestApp\Serializer;
 
 use AnzuSystems\SerializerBundle\Context\SerializationContext;
+use AnzuSystems\SerializerBundle\Handler\BatchItem;
 use AnzuSystems\SerializerBundle\Handler\Handlers\AbstractHandler;
-use AnzuSystems\SerializerBundle\Handler\Handlers\BatchHandlerInterface;
+use AnzuSystems\SerializerBundle\Handler\Handlers\BatchSerializeHandlerInterface;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 
-final class RecordingBatchHandler extends AbstractHandler implements BatchHandlerInterface
+final class RecordingBatchHandler extends AbstractHandler implements BatchSerializeHandlerInterface
 {
     /**
      * @var list<list<mixed>>
@@ -17,7 +18,7 @@ final class RecordingBatchHandler extends AbstractHandler implements BatchHandle
     private array $batches = [];
 
     /**
-     * @var list<string>
+     * @var list<list<string>>
      */
     private array $batchedProperties = [];
 
@@ -36,10 +37,13 @@ final class RecordingBatchHandler extends AbstractHandler implements BatchHandle
         return $value;
     }
 
-    public function prepareSerializeBatch(array $values, Metadata $metadata, SerializationContext $context): void
+    public function prepareSerializeBatch(SerializationContext $context, BatchItem ...$items): void
     {
-        $this->batches[] = $values;
-        $this->batchedProperties[] = (string) $metadata->property;
+        $this->batches[] = array_map(static fn (BatchItem $item): mixed => $item->value, $items);
+        $this->batchedProperties[] = array_map(
+            static fn (BatchItem $item): string => (string) $item->metadata->property,
+            $items,
+        );
         $this->batchedSerializeNulls[] = $context->shouldSerializeNull();
     }
 
@@ -52,7 +56,7 @@ final class RecordingBatchHandler extends AbstractHandler implements BatchHandle
     }
 
     /**
-     * @return list<string>
+     * @return list<list<string>>
      */
     public function getBatchedProperties(): array
     {

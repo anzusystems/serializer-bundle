@@ -6,7 +6,9 @@ namespace AnzuSystems\SerializerBundle\Service;
 
 use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use AnzuSystems\SerializerBundle\Handler\BatchItem;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
+use AnzuSystems\SerializerBundle\Handler\Handlers\BatchDeserializeHandlerInterface;
 use AnzuSystems\SerializerBundle\Metadata\ClassMetadata;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
@@ -49,6 +51,7 @@ final class JsonDeserializer
     public function fromArray(array $data, string $className, ?iterable $iterable = null): object|iterable
     {
         if (is_iterable($iterable)) {
+            $this->prepareListBatches($data, $className);
             if ($iterable instanceof Collection) {
                 foreach ($data as $key => $item) {
                     $iterable->set($key, $this->fromArray($item, $className));
@@ -78,6 +81,7 @@ final class JsonDeserializer
     private function arrayToObject(array $data, string $className): object
     {
         $objectMetadata = $this->metadataRegistry->get($className);
+        $this->drainBatches($this->collectBatches($objectMetadata, $data));
         $object = $this->createObjectInstance($objectMetadata, $className, $data);
         foreach ($objectMetadata->getAll() as $name => $metadata) {
             if (null === $metadata->setter || false === array_key_exists($name, $data)) {
@@ -100,6 +104,69 @@ final class JsonDeserializer
         }
 
         return $object;
+    }
+
+    /**
+     * @param class-string $className
+     *
+     * @throws SerializerException
+     */
+    private function prepareListBatches(array $data, string $className): void
+    {
+        $objectMetadata = $this->metadataRegistry->get($className);
+
+        $batches = [];
+        foreach ($data as $item) {
+            if (false === is_array($item)) {
+                continue;
+            }
+            foreach ($this->collectBatches($objectMetadata, $item) as $handlerClass => $items) {
+                $batches[$handlerClass] = [...$batches[$handlerClass] ?? [], ...$items];
+            }
+        }
+
+        $this->drainBatches($batches);
+    }
+
+    /**
+     * @return array<class-string, list<BatchItem>>
+     */
+    private function collectBatches(ClassMetadata $objectMetadata, array $data): array
+    {
+        $constructorMetadata = $objectMetadata->getConstructorMetadata();
+
+        $batches = [];
+        foreach ($objectMetadata->getAll() as $name => $metadata) {
+            if (false === array_key_exists($name, $data)) {
+                continue;
+            }
+            if (null === $metadata->setter && false === isset($constructorMetadata[$name])) {
+                continue;
+            }
+            $handlerClass = $metadata->customHandler;
+            if (null === $handlerClass || false === is_a($handlerClass, BatchDeserializeHandlerInterface::class, true)) {
+                continue;
+            }
+
+            $batches[$handlerClass][] = new BatchItem($data[$name], $metadata);
+        }
+
+        return $batches;
+    }
+
+    /**
+     * @param array<class-string, list<BatchItem>> $batches
+     *
+     * @throws SerializerException
+     */
+    private function drainBatches(array $batches): void
+    {
+        foreach ($batches as $handlerClass => $items) {
+            $handler = $this->handlerResolver->getHandler($handlerClass);
+            if ($handler instanceof BatchDeserializeHandlerInterface) {
+                $handler->prepareDeserializeBatch(...$items);
+            }
+        }
     }
 
     /**

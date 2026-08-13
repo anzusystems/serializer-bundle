@@ -7,22 +7,41 @@ namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
 use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use AnzuSystems\SerializerBundle\Handler\BatchItem;
 use AnzuSystems\SerializerBundle\Helper\SerializerHelper;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Mapping\ClassMetadata as DoctrineClassMetadata;
+use Doctrine\Persistence\Mapping\MappingException;
 use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;
 use Symfony\Component\TypeInfo\TypeIdentifier;
 use Symfony\Component\Uid\Uuid;
 
-final class EntityIdHandler extends AbstractHandler
+final class EntityIdHandler extends AbstractHandler implements BatchDeserializeHandlerInterface
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
     ) {
+    }
+
+    public function prepareDeserializeBatch(BatchItem ...$items): void
+    {
+        $idsByEntityClass = [];
+        foreach ($items as $item) {
+            $entityClass = (string) ($item->metadata->customType ?? $item->metadata->type);
+            $value = $item->value;
+            foreach (is_iterable($value) ? $value : [$value] as $id) {
+                $idsByEntityClass[$entityClass][] = $id;
+            }
+        }
+
+        foreach ($idsByEntityClass as $entityClass => $ids) {
+            $this->preloadEntities($ids, $entityClass);
+        }
     }
 
     public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): array|object|int|null|string
@@ -72,24 +91,7 @@ final class EntityIdHandler extends AbstractHandler
         }
         if (is_iterable($value)) {
             $entityClass = (string) $metadata->customType;
-            $ids = [];
-            foreach ($value as $id) {
-                $ids[] = $id;
-            }
-            $absentIds = $this->preloadEntities($ids, $entityClass);
-
-            $entities = [];
-            foreach ($ids as $id) {
-                if ((is_int($id) || is_string($id)) && isset($absentIds[$id])) {
-                    continue;
-                }
-
-                /** @psalm-suppress ArgumentTypeCoercion */
-                $entity = $this->entityManager->find($entityClass, $id);
-                if ($entity) {
-                    $entities[] = $entity;
-                }
-            }
+            $entities = $this->loadEntities(iterator_to_array($value, preserve_keys: false), $entityClass);
             if (is_a($metadata->type, Collection::class, true)) {
                 return new ArrayCollection($entities);
             }
@@ -124,54 +126,76 @@ final class EntityIdHandler extends AbstractHandler
     }
 
     /**
-     * One query for the whole list, so the find() calls that follow hit the identity map. Ids it did not bring
-     * back are returned, because Doctrine has no negative cache and find() would query each of them again.
+     * The deserializer runs prepareDeserializeBatch() before it asks for any property, so an id the identity map
+     * does not know is one the database does not have - a find() fallback would only repeat the query that missed.
      *
      * @param list<mixed> $ids
      *
-     * @return array<int|string, int>
+     * @return list<object>
      */
-    private function preloadEntities(array $ids, string $entityClass): array
+    private function loadEntities(array $ids, string $entityClass): array
     {
         /** @psalm-suppress ArgumentTypeCoercion */
         $classMetadata = $this->entityManager->getClassMetadata($entityClass);
-        $identifier = $classMetadata->getSingleIdentifierFieldName();
-        $rootEntityName = $classMetadata->rootEntityName;
 
-        $unmanagedIds = $this->filterUnmanagedIds($ids, $identifier, $rootEntityName);
-        if (count($unmanagedIds) < 2) {
-            return [];
+        $entities = [];
+        foreach ($ids as $id) {
+            /** @psalm-suppress ArgumentTypeCoercion */
+            $entity = is_int($id) || is_string($id)
+                ? $this->tryGetManaged($id, $classMetadata)
+                : $this->entityManager->find($entityClass, $id);
+            if (null === $entity || false === $entity instanceof $entityClass) {
+                continue;
+            }
+
+            $entities[] = $entity;
         }
 
-        /** @psalm-suppress ArgumentTypeCoercion */
-        $this->entityManager->getRepository($entityClass)
-            ->findBy([$identifier => $unmanagedIds]);
-
-        return array_flip($this->filterUnmanagedIds($unmanagedIds, $identifier, $rootEntityName));
+        return $entities;
     }
 
     /**
      * @param list<mixed> $ids
-     *
-     * @return list<int|string> without duplicates
      */
-    private function filterUnmanagedIds(array $ids, string $identifier, string $rootEntityName): array
+    private function preloadEntities(array $ids, string $entityClass): void
     {
-        $unitOfWork = $this->entityManager->getUnitOfWork();
+        try {
+            /** @psalm-suppress ArgumentTypeCoercion */
+            $classMetadata = $this->entityManager->getClassMetadata($entityClass);
+        } catch (MappingException) {
+            // The handler also serves value objects that merely carry a getId(), and warming up is never worth
+            // breaking a payload over.
+            return;
+        }
 
         $unmanagedIds = [];
         foreach ($ids as $id) {
             if (false === is_int($id) && false === is_string($id)) {
                 continue;
             }
-            // The same lookup find() does, so an id it answers from the identity map is never queried again.
-            /** @psalm-suppress ArgumentTypeCoercion */
-            if (false === $unitOfWork->tryGetById([$identifier => $id], $rootEntityName)) {
+            if (null === $this->tryGetManaged($id, $classMetadata)) {
                 $unmanagedIds[$id] = $id;
             }
         }
+        if ([] === $unmanagedIds) {
+            return;
+        }
 
-        return array_values($unmanagedIds);
+        /** @psalm-suppress ArgumentTypeCoercion */
+        $this->entityManager->getRepository($entityClass)
+            ->findBy([$classMetadata->getSingleIdentifierFieldName() => $unmanagedIds]);
+    }
+
+    private function tryGetManaged(int|string $id, DoctrineClassMetadata $classMetadata): ?object
+    {
+        /** @psalm-suppress ArgumentTypeCoercion */
+        $entity = $this->entityManager->getUnitOfWork()
+            ->tryGetById(
+                [$classMetadata->getSingleIdentifierFieldName() => $id],
+                $classMetadata->rootEntityName,
+            );
+
+        return is_object($entity) ? $entity : null;
     }
 
     private function getOrderedIDs(array $ids, Metadata $metadata): Collection

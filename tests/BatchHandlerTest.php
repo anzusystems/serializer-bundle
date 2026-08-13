@@ -84,7 +84,7 @@ final class BatchHandlerTest extends AbstractTestCase
     /**
      * @throws SerializerException
      */
-    public function testEachPreparedPropertyGetsItsOwnBatchWithItsMetadata(): void
+    public function testPropertiesOfDifferentClassesShareOneBatchAndKeepTheirMetadata(): void
     {
         $this->serializer->serialize([
             new BatchDto('first', 'First'),
@@ -92,8 +92,19 @@ final class BatchHandlerTest extends AbstractTestCase
             new BatchDto('second', 'Second'),
         ]);
 
-        self::assertSame([['first', 'second'], ['other']], $this->handler->getBatches());
-        self::assertSame(['code', 'ref'], $this->handler->getBatchedProperties());
+        self::assertSame([['first', 'other', 'second']], $this->handler->getBatches());
+        self::assertSame([['code', 'ref', 'code']], $this->handler->getBatchedProperties());
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testBatchedValueIsReadFromTheGetterOnlyOnce(): void
+    {
+        $item = new BatchDto('first', 'First');
+        $this->serializer->serialize([$item]);
+
+        self::assertSame(1, $item->getCodeReads());
     }
 
     /**

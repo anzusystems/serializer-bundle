@@ -6,6 +6,7 @@ namespace AnzuSystems\SerializerBundle\Tests;
 
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Tests\Dto\EntityIdsDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\EntityIdsMultiPropDto;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Entity\Example;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
@@ -111,6 +112,45 @@ final class EntityIdHandlerTest extends AbstractTestCase
     /**
      * @throws SerializerException
      */
+    public function testEveryPropertyOfOnePayloadSharesOneQueryPerEntityClass(): void
+    {
+        /** @var EntityIdsMultiPropDto $dto */
+        $dto = $this->serializer->deserialize(
+            json_encode([
+                'firstExamples' => [self::FIRST_ID, self::SECOND_ID],
+                'secondExamples' => [self::SECOND_ID, self::THIRD_ID],
+                'singleExample' => self::FIRST_ID,
+            ], JSON_THROW_ON_ERROR),
+            EntityIdsMultiPropDto::class,
+        );
+
+        self::assertSame(1, $this->queryCount(), 'Three properties of one class must share one query');
+        self::assertSame([self::FIRST_ID, self::SECOND_ID], $this->exampleIds($dto->getFirstExamples()));
+        self::assertSame([self::SECOND_ID, self::THIRD_ID], $this->exampleIds($dto->getSecondExamples()));
+        self::assertSame(self::FIRST_ID, $dto->getSingleExample()?->getId());
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testEveryItemOfAListPayloadSharesOneQuery(): void
+    {
+        $this->serializer->deserializeIterable(
+            json_encode([
+                ['examples' => [self::FIRST_ID]],
+                ['examples' => [self::SECOND_ID]],
+                ['examples' => [self::THIRD_ID]],
+            ], JSON_THROW_ON_ERROR),
+            EntityIdsDto::class,
+            [],
+        );
+
+        self::assertSame(1, $this->queryCount(), 'Three items of one list must cost one query, not one each');
+    }
+
+    /**
+     * @throws SerializerException
+     */
     public function testEmptyListCostsNoQuery(): void
     {
         $dto = $this->deserialize([]);
@@ -145,6 +185,16 @@ final class EntityIdHandlerTest extends AbstractTestCase
      */
     private function ids(EntityIdsDto $dto): array
     {
-        return array_map(static fn (Example $example): int => $example->getId(), $dto->getExamples());
+        return $this->exampleIds($dto->getExamples());
+    }
+
+    /**
+     * @param list<Example> $examples
+     *
+     * @return list<int>
+     */
+    private function exampleIds(array $examples): array
+    {
+        return array_map(static fn (Example $example): int => $example->getId(), $examples);
     }
 }

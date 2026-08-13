@@ -14,6 +14,7 @@ final class BatchDto
 
     #[Serialize]
     private string $label;
+    private int $codeReads = 0;
 
     public function __construct(string $code, string $label)
     {
@@ -23,7 +24,14 @@ final class BatchDto
 
     public function getCode(): string
     {
+        $this->codeReads++;
+
         return $this->code;
+    }
+
+    public function getCodeReads(): int
+    {
+        return $this->codeReads;
     }
 
     public function getLabel(): string

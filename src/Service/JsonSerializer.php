@@ -7,7 +7,9 @@ namespace AnzuSystems\SerializerBundle\Service;
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
 use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use AnzuSystems\SerializerBundle\Handler\BatchItem;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
+use AnzuSystems\SerializerBundle\Handler\Handlers\BatchSerializeHandlerInterface;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use Doctrine\Common\Collections\Collection;
@@ -45,7 +47,7 @@ final class JsonSerializer
         }
 
         if (is_iterable($data)) {
-            $this->prepareBatches($data, $context);
+            $preparedValues = $this->prepareBatches($data, $context);
             $output = [];
             foreach ($data as $key => $item) {
                 if (null === $item) {
@@ -56,7 +58,11 @@ final class JsonSerializer
                     continue;
                 }
 
-                $output[$key] = is_scalar($item) ? $item : $this->toArray($item, $metadata, $context);
+                $output[$key] = match (true) {
+                    is_scalar($item) => $item,
+                    is_iterable($item) => $this->toArray($item, $metadata, $context),
+                    default => $this->objectToArray($item, $context, $preparedValues[spl_object_id($item)] ?? []),
+                };
             }
 
             if (Serialize::KEYS_VALUES === $metadata?->strategy) {
@@ -74,13 +80,17 @@ final class JsonSerializer
     }
 
     /**
+     * @param array<string, mixed> $preparedValues
+     *
      * @throws SerializerException
      */
-    private function objectToArray(object $data, SerializationContext $context): array
+    private function objectToArray(object $data, SerializationContext $context, array $preparedValues = []): array
     {
         $output = [];
         foreach ($this->metadataRegistry->get($data::class)->getAll() as $name => $metadata) {
-            $value = $this->getValue($data, $metadata);
+            $value = array_key_exists($name, $preparedValues)
+                ? $preparedValues[$name]
+                : $this->getValue($data, $metadata);
 
             if (null === $value && !$context->shouldSerializeNull()) {
                 continue;
@@ -96,46 +106,45 @@ final class JsonSerializer
     }
 
     /**
+     * @return array<int, array<string, mixed>> the values it read, by object id and serialized name
+     *
      * @throws SerializerException
      */
-    private function prepareBatches(iterable $data, SerializationContext $context): void
+    private function prepareBatches(iterable $data, SerializationContext $context): array
     {
         // A generator would be consumed by this pass, so only arrays and collections are prepared.
         $traversableTwice = is_array($data) || $data instanceof Collection;
-        if (false === $traversableTwice || false === $this->handlerResolver->hasBatchHandlers()) {
-            return;
+        if (false === $traversableTwice) {
+            return [];
         }
 
-        $handlers = [];
-        $metadataList = [];
-        $values = [];
+        $batches = [];
+        $preparedValues = [];
         foreach ($data as $item) {
             if (false === is_object($item)) {
                 continue;
             }
 
-            foreach ($this->metadataRegistry->get($item::class)->getAll() as $metadata) {
+            foreach ($this->metadataRegistry->get($item::class)->getAll() as $name => $metadata) {
                 $handlerClass = $metadata->customHandler;
-                if (null === $handlerClass) {
+                if (null === $handlerClass || false === is_a($handlerClass, BatchSerializeHandlerInterface::class, true)) {
                     continue;
                 }
 
-                $handler = $this->handlerResolver->getBatchHandler($handlerClass);
-                if (null === $handler) {
-                    continue;
-                }
-
-                // MetadataRegistry keeps one instance per class and property, so its identity is a stable bucket.
-                $bucket = spl_object_id($metadata);
-                $handlers[$bucket] = $handler;
-                $metadataList[$bucket] = $metadata;
-                $values[$bucket][] = $this->getValue($item, $metadata);
+                $value = $this->getValue($item, $metadata);
+                $preparedValues[spl_object_id($item)][$name] = $value;
+                $batches[$handlerClass][] = new BatchItem($value, $metadata);
             }
         }
 
-        foreach ($values as $bucket => $bucketValues) {
-            $handlers[$bucket]->prepareSerializeBatch($bucketValues, $metadataList[$bucket], $context);
+        foreach ($batches as $handlerClass => $items) {
+            $handler = $this->handlerResolver->getHandler($handlerClass);
+            if ($handler instanceof BatchSerializeHandlerInterface) {
+                $handler->prepareSerializeBatch($context, ...$items);
+            }
         }
+
+        return $preparedValues;
     }
 
     private function getValue(object $data, Metadata $metadata): mixed
