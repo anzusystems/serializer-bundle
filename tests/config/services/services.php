@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
 use AnzuSystems\SerializerBundle\Tests\TestApp\Controller\DummyController;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\RecordingBatchHandler;
 
 return static function (ContainerConfigurator $configurator): void {
     $services = $configurator->services();
@@ -12,5 +13,11 @@ return static function (ContainerConfigurator $configurator): void {
     $services->set(DummyController::class)
         ->autowire(true)
         ->autoconfigure(true)
+    ;
+
+    $services->set(RecordingBatchHandler::class)
+        ->autowire(true)
+        ->autoconfigure(true)
+        ->public()
     ;
 };

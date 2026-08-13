@@ -32,7 +32,7 @@ class Example
     #[Serialize]
     private ExampleBackedEnum $place = ExampleBackedEnum::First;
 
-    #[ORM\Column(enumType: ExampleUnitEnum::class)]
+    // Not persisted: Doctrine maps backed enums only; kept to cover unit enum serialization.
     #[Serialize]
     private ExampleUnitEnum $color = ExampleUnitEnum::Red;
 

@@ -10,6 +10,7 @@ use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
+use Doctrine\Common\Collections\Collection;
 use JsonException;
 
 final class JsonSerializer
@@ -44,6 +45,7 @@ final class JsonSerializer
         }
 
         if (is_iterable($data)) {
+            $this->prepareBatches($data);
             $output = [];
             foreach ($data as $key => $item) {
                 if (null === $item) {
@@ -78,7 +80,7 @@ final class JsonSerializer
     {
         $output = [];
         foreach ($this->metadataRegistry->get($data::class)->getAll() as $name => $metadata) {
-            $value = $metadata->getterSetterStrategy ? $data->{$metadata->getter}() : $data->{$metadata->property};
+            $value = $this->getValue($data, $metadata);
 
             if (null === $value && !$context->shouldSerializeNull()) {
                 continue;
@@ -91,5 +93,49 @@ final class JsonSerializer
         }
 
         return $output;
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    private function prepareBatches(iterable $data): void
+    {
+        // A generator would be consumed by this pass, so only arrays and collections are prepared.
+        $traversableTwice = is_array($data) || $data instanceof Collection;
+        if (false === $traversableTwice || false === $this->handlerResolver->hasBatchHandlers()) {
+            return;
+        }
+
+        $handlers = [];
+        $values = [];
+        foreach ($data as $item) {
+            if (false === is_object($item)) {
+                continue;
+            }
+
+            foreach ($this->metadataRegistry->get($item::class)->getAll() as $metadata) {
+                $handlerClass = $metadata->customHandler;
+                if (null === $handlerClass) {
+                    continue;
+                }
+
+                $handler = $this->handlerResolver->getBatchHandler($handlerClass);
+                if (null === $handler) {
+                    continue;
+                }
+
+                $handlers[$handlerClass] = $handler;
+                $values[$handlerClass][] = $this->getValue($item, $metadata);
+            }
+        }
+
+        foreach ($values as $handlerClass => $handlerValues) {
+            $handlers[$handlerClass]->prepareSerializeBatch($handlerValues);
+        }
+    }
+
+    private function getValue(object $data, Metadata $metadata): mixed
+    {
+        return $metadata->getterSetterStrategy ? $data->{$metadata->getter}() : $data->{$metadata->property};
     }
 }

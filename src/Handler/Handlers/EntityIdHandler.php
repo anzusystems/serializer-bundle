@@ -71,10 +71,17 @@ final class EntityIdHandler extends AbstractHandler
             return null;
         }
         if (is_iterable($value)) {
-            $entities = [];
+            $entityClass = (string) $metadata->customType;
+            $ids = [];
             foreach ($value as $id) {
+                $ids[] = $id;
+            }
+            $this->preloadEntities($ids, $entityClass);
+
+            $entities = [];
+            foreach ($ids as $id) {
                 /** @psalm-suppress ArgumentTypeCoercion */
-                $entity = $this->entityManager->find((string) $metadata->customType, $id);
+                $entity = $this->entityManager->find($entityClass, $id);
                 if ($entity) {
                     $entities[] = $entity;
                 }
@@ -110,6 +117,27 @@ final class EntityIdHandler extends AbstractHandler
         $description['title'] = SerializerHelper::getClassBaseName($metadata->type) . ' ID';
 
         return $description;
+    }
+
+    /**
+     * One query for the whole list, so that the find() calls that follow are answered from the identity map
+     * instead of one query per id.
+     *
+     * @param list<mixed> $ids
+     */
+    private function preloadEntities(array $ids, string $entityClass): void
+    {
+        $ids = array_filter($ids, static fn (mixed $id): bool => is_int($id) || is_string($id));
+        if (count($ids) < 2) {
+            return;
+        }
+
+        /** @psalm-suppress ArgumentTypeCoercion */
+        $identifier = $this->entityManager->getClassMetadata($entityClass)
+            ->getSingleIdentifierFieldName();
+        /** @psalm-suppress ArgumentTypeCoercion */
+        $this->entityManager->getRepository($entityClass)
+            ->findBy([$identifier => $ids]);
     }
 
     private function getOrderedIDs(array $ids, Metadata $metadata): Collection

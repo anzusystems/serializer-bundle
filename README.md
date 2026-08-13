@@ -193,6 +193,60 @@ By default, all handlers have priority 0. Except:
 `BasicHandler` has highest priority (10) - this handles simple scalar values, so generally you want it to be first.
 `ObjectHandler` has lowest priority (-1) - this handles nested iterables/objects that no other handler supports.
 
+### Batch handler
+
+A handler that resolves its value through I/O (a database lookup, an API call) would do it once per item of
+a serialized collection. Implement `BatchHandlerInterface` and the serializer will hand you every value of
+the collection before it asks you to serialize the first one, so you can resolve them all at once:
+
+```php
+use AnzuSystems\SerializerBundle\Handler\Handlers\AbstractHandler;
+use AnzuSystems\SerializerBundle\Handler\Handlers\BatchHandlerInterface;
+
+final class AuthorHandler extends AbstractHandler implements BatchHandlerInterface
+{
+    /** @var array<int, Author> */
+    private array $authors = [];
+
+    /**
+     * @param list<mixed> $values
+     */
+    public function prepareSerializeBatch(array $values): void
+    {
+        $missingIds = array_diff(array_filter($values, 'is_int'), array_keys($this->authors));
+        foreach ($this->authorRepository->findByIds($missingIds) as $author) {
+            $this->authors[$author->getId()] = $author;
+        }
+    }
+
+    /**
+     * @param int|null $value
+     */
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): ?array
+    {
+        // one query for the whole collection instead of one per item
+    }
+}
+```
+
+The handler is still forced on the property the usual way, `#[Serialize(handler: AuthorHandler::class)]`.
+Serialization output is not affected in any way - preparing a batch only changes how many times the handler
+has to go and fetch something.
+
+Worth knowing before you rely on it:
+
+- `prepareSerializeBatch()` is called **once per serialized collection**, and a collection nested inside every item of
+  another collection is therefore prepared once per parent item.
+- It may be called **several times per request** (a response can contain more than one collection), so it has
+  to be idempotent - keep what you already resolved. Keep it in a store that is reset between runs, though:
+  handlers are container singletons, so an unbounded map on the handler itself outlives the response in a
+  worker.
+- Only `array` and `Doctrine\Common\Collections\Collection` are prepared. A generator or a plain iterator is
+  skipped, because traversing it twice would consume the data that is about to be serialized; such handlers
+  fall back to resolving value by value.
+- Only handlers forced via `#[Serialize(handler: ...)]` are prepared, not the automatically resolved ones.
+- Values arrive in the order of the collection, duplicates and nulls included. Filtering is up to the handler.
+
 ### Automatically generated API documentation via NelmioApiDocBundle 
 
 Model describer will be automatically registered if [NelmioApiDocBundle](https://github.com/nelmio/NelmioApiDocBundle) is present.

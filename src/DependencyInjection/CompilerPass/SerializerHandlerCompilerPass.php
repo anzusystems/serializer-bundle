@@ -6,6 +6,7 @@ namespace AnzuSystems\SerializerBundle\DependencyInjection\CompilerPass;
 
 use AnzuSystems\SerializerBundle\AnzuSystemsSerializerBundle;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
+use AnzuSystems\SerializerBundle\Handler\Handlers\BatchHandlerInterface;
 use AnzuSystems\SerializerBundle\Handler\Handlers\HandlerInterface;
 use Symfony\Component\DependencyInjection\Argument\ServiceLocatorArgument;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
@@ -33,11 +34,19 @@ final class SerializerHandlerCompilerPass implements CompilerPassInterface
             $handlerReferences[$handler] = new Reference($handler);
         }
 
+        $batchHandlers = [];
+        foreach ($handlers as $handler) {
+            if (is_a($handler, BatchHandlerInterface::class, true)) {
+                $batchHandlers[$handler] = true;
+            }
+        }
+
         $handlerLocator = new ServiceLocatorArgument($handlerReferences);
         $container
             ->getDefinition(HandlerResolver::class)
             ->setArgument('$handlerLocator', $handlerLocator)
             ->setArgument('$handlers', $handlers)
+            ->setArgument('$batchHandlers', $batchHandlers)
         ;
     }
 }

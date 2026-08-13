@@ -1,6 +1,8 @@
 doctrine:
     dbal:
         url: '%env(resolve:DB_BUNDLE_URL)%'
+        profiling: true
+        profiling_collect_backtrace: false
     orm:
         auto_generate_proxy_classes: true
         enable_native_lazy_objects: true
@@ -9,5 +11,5 @@ doctrine:
         mappings:
             App:
                 dir: '%kernel.project_dir%/tests/TestApp/Entity'
-                prefix: 'AnzuSystems\CommonBundle\Tests\TestApp\Entity'
+                prefix: 'AnzuSystems\SerializerBundle\Tests\TestApp\Entity'
                 type: attribute

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Handler;
 
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use AnzuSystems\SerializerBundle\Handler\Handlers\BatchHandlerInterface;
 use AnzuSystems\SerializerBundle\Handler\Handlers\HandlerInterface;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use Psr\Container\ContainerExceptionInterface;
@@ -13,10 +14,38 @@ use Psr\Container\NotFoundExceptionInterface;
 
 final readonly class HandlerResolver
 {
+    /**
+     * @param array<class-string<BatchHandlerInterface>, true> $batchHandlers
+     */
     public function __construct(
         private ContainerInterface $handlerLocator,
         private array $handlers,
+        private array $batchHandlers = [],
     ) {
+    }
+
+    public function hasBatchHandlers(): bool
+    {
+        return [] !== $this->batchHandlers;
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function getBatchHandler(string $customHandler): ?BatchHandlerInterface
+    {
+        if (false === isset($this->batchHandlers[$customHandler])) {
+            return null;
+        }
+
+        try {
+            /** @var BatchHandlerInterface $handler */
+            $handler = $this->handlerLocator->get($customHandler);
+        } catch (NotFoundExceptionInterface|ContainerExceptionInterface $exception) {
+            throw new SerializerException('Unable to get handler.', 0, $exception);
+        }
+
+        return $handler;
     }
 
     /**
