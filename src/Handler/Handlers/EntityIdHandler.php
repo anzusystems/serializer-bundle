@@ -187,7 +187,8 @@ final class EntityIdHandler extends AbstractHandler
             return $id;
         }, $ids);
         /** @psalm-suppress ArgumentTypeCoercion */
-        $dqb = $this->entityManager->getRepository((string) $metadata->customType)->createQueryBuilder('entity');
+        $dqb = $this->entityManager->getRepository((string) $metadata->customType)
+            ->createQueryBuilder('entity');
         $dqb
             ->select('entity.id')
             ->where('entity.id IN (:ids)')
@@ -205,7 +206,8 @@ final class EntityIdHandler extends AbstractHandler
             }
 
             return $id;
-        }, $dqb->getQuery()->getSingleColumnResult());
+        }, $dqb->getQuery()
+            ->getSingleColumnResult());
 
         return new ArrayCollection($resultIds);
     }
