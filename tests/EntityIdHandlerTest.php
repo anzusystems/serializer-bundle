@@ -85,6 +85,32 @@ final class EntityIdHandlerTest extends AbstractTestCase
     /**
      * @throws SerializerException
      */
+    public function testUnknownIdsCostNoQueryOfTheirOwn(): void
+    {
+        $dto = $this->deserialize([self::FIRST_ID, self::MISSING_ID, self::SECOND_ID]);
+
+        self::assertSame(1, $this->queryCount(), 'A missing id must not cost a query of its own');
+        self::assertSame([self::FIRST_ID, self::SECOND_ID], $this->ids($dto));
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testAlreadyLoadedIdsCostNoQuery(): void
+    {
+        $this->entityManager->getRepository(Example::class)
+            ->findBy(['id' => [self::FIRST_ID, self::SECOND_ID, self::THIRD_ID]]);
+        $this->debugDataHolder->reset();
+
+        $dto = $this->deserialize([self::FIRST_ID, self::SECOND_ID, self::THIRD_ID]);
+
+        self::assertSame(0, $this->queryCount());
+        self::assertSame([self::FIRST_ID, self::SECOND_ID, self::THIRD_ID], $this->ids($dto));
+    }
+
+    /**
+     * @throws SerializerException
+     */
     public function testEmptyListCostsNoQuery(): void
     {
         $dto = $this->deserialize([]);

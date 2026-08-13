@@ -76,10 +76,14 @@ final class EntityIdHandler extends AbstractHandler
             foreach ($value as $id) {
                 $ids[] = $id;
             }
-            $this->preloadEntities($ids, $entityClass);
+            $absentIds = $this->preloadEntities($ids, $entityClass);
 
             $entities = [];
             foreach ($ids as $id) {
+                if ((is_int($id) || is_string($id)) && isset($absentIds[$id])) {
+                    continue;
+                }
+
                 /** @psalm-suppress ArgumentTypeCoercion */
                 $entity = $this->entityManager->find($entityClass, $id);
                 if ($entity) {
@@ -120,24 +124,54 @@ final class EntityIdHandler extends AbstractHandler
     }
 
     /**
-     * One query for the whole list, so that the find() calls that follow are answered from the identity map
-     * instead of one query per id.
+     * One query for the whole list, so the find() calls that follow hit the identity map. Ids it did not bring
+     * back are returned, because Doctrine has no negative cache and find() would query each of them again.
      *
      * @param list<mixed> $ids
+     *
+     * @return array<int|string, int>
      */
-    private function preloadEntities(array $ids, string $entityClass): void
+    private function preloadEntities(array $ids, string $entityClass): array
     {
-        $ids = array_filter($ids, static fn (mixed $id): bool => is_int($id) || is_string($id));
-        if (count($ids) < 2) {
-            return;
+        /** @psalm-suppress ArgumentTypeCoercion */
+        $classMetadata = $this->entityManager->getClassMetadata($entityClass);
+        $identifier = $classMetadata->getSingleIdentifierFieldName();
+        $rootEntityName = $classMetadata->rootEntityName;
+
+        $unmanagedIds = $this->filterUnmanagedIds($ids, $identifier, $rootEntityName);
+        if (count($unmanagedIds) < 2) {
+            return [];
         }
 
         /** @psalm-suppress ArgumentTypeCoercion */
-        $identifier = $this->entityManager->getClassMetadata($entityClass)
-            ->getSingleIdentifierFieldName();
-        /** @psalm-suppress ArgumentTypeCoercion */
         $this->entityManager->getRepository($entityClass)
-            ->findBy([$identifier => $ids]);
+            ->findBy([$identifier => $unmanagedIds]);
+
+        return array_flip($this->filterUnmanagedIds($unmanagedIds, $identifier, $rootEntityName));
+    }
+
+    /**
+     * @param list<mixed> $ids
+     *
+     * @return list<int|string> without duplicates
+     */
+    private function filterUnmanagedIds(array $ids, string $identifier, string $rootEntityName): array
+    {
+        $unitOfWork = $this->entityManager->getUnitOfWork();
+
+        $unmanagedIds = [];
+        foreach ($ids as $id) {
+            if (false === is_int($id) && false === is_string($id)) {
+                continue;
+            }
+            // The same lookup find() does, so an id it answers from the identity map is never queried again.
+            /** @psalm-suppress ArgumentTypeCoercion */
+            if (false === $unitOfWork->tryGetById([$identifier => $id], $rootEntityName)) {
+                $unmanagedIds[$id] = $id;
+            }
+        }
+
+        return array_values($unmanagedIds);
     }
 
     private function getOrderedIDs(array $ids, Metadata $metadata): Collection

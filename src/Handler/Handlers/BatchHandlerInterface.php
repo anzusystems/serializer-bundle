@@ -11,7 +11,7 @@ use AnzuSystems\SerializerBundle\Metadata\Metadata;
 interface BatchHandlerInterface extends HandlerInterface
 {
     /**
-     * @param list<mixed> $values every value the following serialize() calls will receive, for one property
+     * @param list<mixed> $values
      *
      * @throws SerializerException
      */

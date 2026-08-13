@@ -125,8 +125,7 @@ final class JsonSerializer
                     continue;
                 }
 
-                // MetadataRegistry keeps one instance per class and property, so its identity buckets the
-                // values of one property together and keeps differently configured properties apart.
+                // MetadataRegistry keeps one instance per class and property, so its identity is a stable bucket.
                 $bucket = spl_object_id($metadata);
                 $handlers[$bucket] = $handler;
                 $metadataList[$bucket] = $metadata;

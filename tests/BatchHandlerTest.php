@@ -103,7 +103,7 @@ final class BatchHandlerTest extends AbstractTestCase
     {
         $this->serializer->serialize(self::items(), SerializationContext::create()->setSerializeNulls(false));
 
-        self::assertSame([false], $this->handler->getBatchedNullStrategies());
+        self::assertSame([false], $this->handler->getBatchedSerializeNulls());
     }
 
     /**
