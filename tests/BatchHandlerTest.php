@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Tests;
 
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchListDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\BatchOtherDto;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\RecordingBatchHandler;
 use Doctrine\Common\Collections\ArrayCollection;
 use Exception;
@@ -77,6 +79,31 @@ final class BatchHandlerTest extends AbstractTestCase
         $this->serializer->serialize([new BatchDto('fourth', 'Fourth')]);
 
         self::assertSame([['first', 'second', 'third'], ['fourth']], $this->handler->getBatches());
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testEachPreparedPropertyGetsItsOwnBatchWithItsMetadata(): void
+    {
+        $this->serializer->serialize([
+            new BatchDto('first', 'First'),
+            new BatchOtherDto('other'),
+            new BatchDto('second', 'Second'),
+        ]);
+
+        self::assertSame([['first', 'second'], ['other']], $this->handler->getBatches());
+        self::assertSame(['code', 'ref'], $this->handler->getBatchedProperties());
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testBatchReceivesTheSerializationContext(): void
+    {
+        $this->serializer->serialize(self::items(), SerializationContext::create()->setSerializeNulls(false));
+
+        self::assertSame([false], $this->handler->getBatchedNullStrategies());
     }
 
     /**

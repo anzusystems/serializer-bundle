@@ -200,8 +200,10 @@ a serialized collection. Implement `BatchHandlerInterface` and the serializer wi
 the collection before it asks you to serialize the first one, so you can resolve them all at once:
 
 ```php
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Handler\Handlers\AbstractHandler;
 use AnzuSystems\SerializerBundle\Handler\Handlers\BatchHandlerInterface;
+use AnzuSystems\SerializerBundle\Metadata\Metadata;
 
 final class AuthorHandler extends AbstractHandler implements BatchHandlerInterface
 {
@@ -211,7 +213,7 @@ final class AuthorHandler extends AbstractHandler implements BatchHandlerInterfa
     /**
      * @param list<mixed> $values
      */
-    public function prepareSerializeBatch(array $values): void
+    public function prepareSerializeBatch(array $values, Metadata $metadata, SerializationContext $context): void
     {
         $missingIds = array_diff(array_filter($values, 'is_int'), array_keys($this->authors));
         foreach ($this->authorRepository->findByIds($missingIds) as $author) {
@@ -235,8 +237,10 @@ has to go and fetch something.
 
 Worth knowing before you rely on it:
 
-- `prepareSerializeBatch()` is called **once per serialized collection**, and a collection nested inside every item of
-  another collection is therefore prepared once per parent item.
+- `prepareSerializeBatch()` is called **once per property per serialized collection**, and it receives the
+  `Metadata` of that property, so a handler parametrized by metadata (`customType`, `strategy`, `orderBy`) knows
+  what it is preparing. A collection whose items are of different classes therefore gets one call per class.
+- A collection nested inside every item of another collection is prepared once per parent item.
 - It may be called **several times per request** (a response can contain more than one collection), so it has
   to be idempotent - keep what you already resolved. Keep it in a store that is reset between runs, though:
   handlers are container singletons, so an unbounded map on the handler itself outlives the response in a

@@ -16,6 +16,16 @@ final class RecordingBatchHandler extends AbstractHandler implements BatchHandle
      */
     private array $batches = [];
 
+    /**
+     * @var list<string>
+     */
+    private array $batchedProperties = [];
+
+    /**
+     * @var list<bool>
+     */
+    private array $batchedNullStrategies = [];
+
     public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): mixed
     {
         return $value;
@@ -26,9 +36,11 @@ final class RecordingBatchHandler extends AbstractHandler implements BatchHandle
         return $value;
     }
 
-    public function prepareSerializeBatch(array $values): void
+    public function prepareSerializeBatch(array $values, Metadata $metadata, SerializationContext $context): void
     {
         $this->batches[] = $values;
+        $this->batchedProperties[] = (string) $metadata->property;
+        $this->batchedNullStrategies[] = $context->shouldSerializeNull();
     }
 
     /**
@@ -37,5 +49,21 @@ final class RecordingBatchHandler extends AbstractHandler implements BatchHandle
     public function getBatches(): array
     {
         return $this->batches;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getBatchedProperties(): array
+    {
+        return $this->batchedProperties;
+    }
+
+    /**
+     * @return list<bool>
+     */
+    public function getBatchedNullStrategies(): array
+    {
+        return $this->batchedNullStrategies;
     }
 }

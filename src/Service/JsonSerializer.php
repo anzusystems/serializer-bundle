@@ -45,7 +45,7 @@ final class JsonSerializer
         }
 
         if (is_iterable($data)) {
-            $this->prepareBatches($data);
+            $this->prepareBatches($data, $context);
             $output = [];
             foreach ($data as $key => $item) {
                 if (null === $item) {
@@ -98,7 +98,7 @@ final class JsonSerializer
     /**
      * @throws SerializerException
      */
-    private function prepareBatches(iterable $data): void
+    private function prepareBatches(iterable $data, SerializationContext $context): void
     {
         // A generator would be consumed by this pass, so only arrays and collections are prepared.
         $traversableTwice = is_array($data) || $data instanceof Collection;
@@ -107,6 +107,7 @@ final class JsonSerializer
         }
 
         $handlers = [];
+        $metadataList = [];
         $values = [];
         foreach ($data as $item) {
             if (false === is_object($item)) {
@@ -124,13 +125,17 @@ final class JsonSerializer
                     continue;
                 }
 
-                $handlers[$handlerClass] = $handler;
-                $values[$handlerClass][] = $this->getValue($item, $metadata);
+                // MetadataRegistry keeps one instance per class and property, so its identity buckets the
+                // values of one property together and keeps differently configured properties apart.
+                $bucket = spl_object_id($metadata);
+                $handlers[$bucket] = $handler;
+                $metadataList[$bucket] = $metadata;
+                $values[$bucket][] = $this->getValue($item, $metadata);
             }
         }
 
-        foreach ($values as $handlerClass => $handlerValues) {
-            $handlers[$handlerClass]->prepareSerializeBatch($handlerValues);
+        foreach ($values as $bucket => $bucketValues) {
+            $handlers[$bucket]->prepareSerializeBatch($bucketValues, $metadataList[$bucket], $context);
         }
     }
 
