@@ -12,6 +12,8 @@ use AnzuSystems\SerializerBundle\Helper\SerializerHelper;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Exception as DbalException;
+use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata as DoctrineClassMetadata;
 use Doctrine\Persistence\Mapping\MappingException;
@@ -188,14 +190,36 @@ final class EntityIdHandler extends AbstractHandler implements BatchDeserializeH
 
     private function tryGetManaged(int|string $id, DoctrineClassMetadata $classMetadata): ?object
     {
+        $identifier = $classMetadata->getSingleIdentifierFieldName();
+
         /** @psalm-suppress ArgumentTypeCoercion */
         $entity = $this->entityManager->getUnitOfWork()
             ->tryGetById(
-                [$classMetadata->getSingleIdentifierFieldName() => $id],
+                [$identifier => $this->toIdentifierValue($id, $identifier, $classMetadata)],
                 $classMetadata->rootEntityName,
             );
 
         return is_object($entity) ? $entity : null;
+    }
+
+    /**
+     * Doctrine registers an entity under the identifier its type produced, so a raw json id has to go through the
+     * same conversion - an uppercase uuid would otherwise look like an id that does not exist, and this path has
+     * no find() to fall back on.
+     */
+    private function toIdentifierValue(int|string $id, string $identifier, DoctrineClassMetadata $classMetadata): mixed
+    {
+        $typeName = $classMetadata->getTypeOfField($identifier);
+        if (null === $typeName) {
+            return $id;
+        }
+
+        try {
+            return Type::getType($typeName)
+                ->convertToPHPValue($id, $this->entityManager->getConnection()->getDatabasePlatform());
+        } catch (DbalException) {
+            return $id;
+        }
     }
 
     private function getOrderedIDs(array $ids, Metadata $metadata): Collection

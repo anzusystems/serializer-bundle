@@ -7,10 +7,13 @@ namespace AnzuSystems\SerializerBundle\Tests;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Tests\Dto\EntityIdsDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\EntityIdsMultiPropDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\EntityUuidIdsDto;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Entity\Example;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Entity\ExampleUuid;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
+use Symfony\Component\Uid\Uuid;
 
 final class EntityIdHandlerTest extends AbstractTestCase
 {
@@ -47,6 +50,7 @@ final class EntityIdHandlerTest extends AbstractTestCase
     protected function tearDown(): void
     {
         $this->entityManager->createQuery('DELETE FROM ' . Example::class)->execute();
+        $this->entityManager->createQuery('DELETE FROM ' . ExampleUuid::class)->execute();
         $this->entityManager->clear();
 
         parent::tearDown();
@@ -146,6 +150,26 @@ final class EntityIdHandlerTest extends AbstractTestCase
         );
 
         self::assertSame(1, $this->queryCount(), 'Three items of one list must cost one query, not one each');
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testUuidIdIsResolvedWhateverCaseItArrivesIn(): void
+    {
+        $uuid = Uuid::v4();
+        $this->entityManager->persist(new ExampleUuid()->setId($uuid)->setName('uuid-example'));
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        /** @var EntityUuidIdsDto $dto */
+        $dto = $this->serializer->deserialize(
+            json_encode(['examples' => [strtoupper($uuid->toRfc4122())]], JSON_THROW_ON_ERROR),
+            EntityUuidIdsDto::class,
+        );
+
+        self::assertCount(1, $dto->getExamples());
+        self::assertTrue($uuid->equals($dto->getExamples()[0]->getId()));
     }
 
     /**

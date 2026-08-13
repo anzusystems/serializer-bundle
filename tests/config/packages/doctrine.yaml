@@ -3,6 +3,8 @@ doctrine:
         url: '%env(resolve:DB_BUNDLE_URL)%'
         profiling: true
         profiling_collect_backtrace: false
+        types:
+            uuid: Symfony\Bridge\Doctrine\Types\UuidType
     orm:
         auto_generate_proxy_classes: true
         enable_native_lazy_objects: true
