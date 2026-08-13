@@ -193,6 +193,103 @@ By default, all handlers have priority 0. Except:
 `BasicHandler` has highest priority (10) - this handles simple scalar values, so generally you want it to be first.
 `ObjectHandler` has lowest priority (-1) - this handles nested iterables/objects that no other handler supports.
 
+### Batch handlers
+
+A handler that resolves its value through I/O (a database lookup, an API call) would do it once per item of
+a serialized collection, and once per property of a deserialized object. Two interfaces let it do the I/O once
+for the whole batch instead: `BatchSerializeHandlerInterface` for the way out, `BatchDeserializeHandlerInterface`
+for the way in.
+
+#### Serialization
+
+Implement `BatchSerializeHandlerInterface` and the serializer will hand you every value of the collection as a
+`BatchItem` before it asks you to serialize the first one, so you can resolve them all at once:
+
+```php
+use AnzuSystems\SerializerBundle\Context\SerializationContext;
+use AnzuSystems\SerializerBundle\Handler\BatchItem;
+use AnzuSystems\SerializerBundle\Handler\Handlers\AbstractHandler;
+use AnzuSystems\SerializerBundle\Handler\Handlers\BatchSerializeHandlerInterface;
+use AnzuSystems\SerializerBundle\Metadata\Metadata;
+
+final class AuthorHandler extends AbstractHandler implements BatchSerializeHandlerInterface
+{
+    /** @var array<int, Author> */
+    private array $authors = [];
+
+    public function prepareSerializeBatch(SerializationContext $context, BatchItem ...$items): void
+    {
+        $ids = array_filter(array_map(static fn (BatchItem $item): mixed => $item->value, $items), 'is_int');
+        foreach ($this->authorRepository->findByIds(array_diff($ids, array_keys($this->authors))) as $author) {
+            $this->authors[$author->getId()] = $author;
+        }
+    }
+
+    /**
+     * @param int|null $value
+     */
+    public function serialize(mixed $value, Metadata $metadata, SerializationContext $context): ?array
+    {
+        // one query for the whole collection instead of one per item
+    }
+}
+```
+
+The handler is still forced on the property the usual way, `#[Serialize(handler: AuthorHandler::class)]`.
+Serialization output is not affected in any way - preparing a batch only changes how many times the handler
+has to go and fetch something.
+
+Worth knowing before you rely on it:
+
+- `prepareSerializeBatch()` is called **once per serialized collection**, with every value the handler owns across
+  every item, each carrying the `Metadata` of the property it came from - so a handler parametrized by metadata
+  (`customType`, `strategy`, `orderBy`) can group the items itself instead of being handed them pre-split.
+- The values it reads are reused when serializing, so a getter behind a batched property is called once per item.
+- A collection nested inside every item of another collection is prepared once per parent item.
+- It may be called **several times per request** (a response can contain more than one collection), so it has
+  to be idempotent - keep what you already resolved. Keep it in a store that is reset between runs, though:
+  handlers are container singletons, so an unbounded map on the handler itself outlives the response in a
+  worker.
+- Only `array` and `Doctrine\Common\Collections\Collection` are prepared. A generator or a plain iterator is
+  skipped, because traversing it twice would consume the data that is about to be serialized; such handlers
+  fall back to resolving value by value.
+- Only handlers forced via `#[Serialize(handler: ...)]` are prepared, not the automatically resolved ones.
+- Values arrive in the order of the collection, duplicates and nulls included. Filtering is up to the handler.
+
+#### Deserialization
+
+Implement `BatchDeserializeHandlerInterface` and you get every property of the object about to be deserialized
+that this handler is responsible for, each as a `BatchItem` carrying the raw value and its `Metadata`, before the
+first `deserialize()` call:
+
+```php
+use AnzuSystems\SerializerBundle\Handler\BatchItem;
+use AnzuSystems\SerializerBundle\Handler\Handlers\BatchDeserializeHandlerInterface;
+
+final class AuthorHandler extends AbstractHandler implements BatchDeserializeHandlerInterface
+{
+    public function prepareDeserializeBatch(BatchItem ...$items): void
+    {
+        // group by whatever the handler keys its lookups on, then one fetch per group
+    }
+}
+```
+
+The point is the grouping the handler itself controls: three properties pointing at the same target type share
+one lookup, and a property holding a single value joins the same batch instead of costing a lookup of its own.
+
+Worth knowing:
+
+- The pass covers **one object at a time**, the properties present in the incoming data that this handler owns.
+  A list payload (`deserialize($json, Foo::class, [])`) is prepared for the whole list first, so N items cost one
+  batch, not N. Nested objects are prepared when their own turn comes, not together with their parent.
+- Properties without a setter are skipped unless they are constructor arguments, matching what deserialization
+  itself does.
+- It is guaranteed to run **before the first `deserialize()` call** of that object, constructor arguments
+  included, so a handler may treat it as the one place where it fetches - `EntityIdHandler` does exactly that
+  and afterwards only reads Doctrine's identity map, which is what keeps an id that does not exist from costing
+  a query of its own.
+
 ### Automatically generated API documentation via NelmioApiDocBundle 
 
 Model describer will be automatically registered if [NelmioApiDocBundle](https://github.com/nelmio/NelmioApiDocBundle) is present.

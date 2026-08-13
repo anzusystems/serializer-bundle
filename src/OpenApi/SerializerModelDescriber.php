@@ -68,7 +68,8 @@ final class SerializerModelDescriber implements ModelDescriberInterface
             if (is_string($metadata->property) && $typeInfo instanceof ObjectType && false === empty($typeInfo->getClassName())) {
                 /** @psalm-suppress ArgumentTypeCoercion */
                 $propertyReflection = new ReflectionProperty($typeInfo->getClassName(), $metadata->property);
-                $this->getSymfonyConstraintAnnotationReader()->updateProperty($propertyReflection, $property);
+                $this->getSymfonyConstraintAnnotationReader()
+                    ->updateProperty($propertyReflection, $property);
                 $this->addDocBlockDescription($propertyReflection, $property);
             }
 
@@ -130,7 +131,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
     }
 
     /**
-     * @throws ReflectionException | SerializerException
+     * @throws ReflectionException|SerializerException
      */
     private function describeNested(string $property, array $description): ?Property
     {
@@ -152,7 +153,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
     }
 
     /**
-     * @throws ReflectionException | SerializerException
+     * @throws ReflectionException|SerializerException
      */
     private function describeNestedItems(array &$description): void
     {
@@ -180,7 +181,8 @@ final class SerializerModelDescriber implements ModelDescriberInterface
         $className = $typeInfo->getClassName();
         if (class_exists($className)) {
             try {
-                return $this->metadataRegistry->get($className)->getAll();
+                return $this->metadataRegistry->get($className)
+                    ->getAll();
             } catch (SerializerException) {
                 return [];
             }

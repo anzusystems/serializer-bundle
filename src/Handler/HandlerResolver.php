@@ -22,6 +22,18 @@ final readonly class HandlerResolver
     /**
      * @throws SerializerException
      */
+    public function getHandler(string $handlerClass): HandlerInterface
+    {
+        try {
+            return $this->handlerLocator->get($handlerClass);
+        } catch (NotFoundExceptionInterface|ContainerExceptionInterface $exception) {
+            throw new SerializerException('Unable to get handler.', 0, $exception);
+        }
+    }
+
+    /**
+     * @throws SerializerException
+     */
     public function getSerializationHandler(mixed $value, ?string $customHandler): HandlerInterface
     {
         try {
