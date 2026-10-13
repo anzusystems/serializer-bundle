@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 
 use AnzuSystems\SerializerBundle\Tests\TestApp\Controller\DummyController;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\NonSharedHandler;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\RecordingBatchHandler;
 
 return static function (ContainerConfigurator $configurator): void {
@@ -19,5 +20,10 @@ return static function (ContainerConfigurator $configurator): void {
         ->autowire(true)
         ->autoconfigure(true)
         ->public()
+    ;
+
+    $services->set(NonSharedHandler::class)
+        ->autoconfigure(true)
+        ->share(false)
     ;
 };
