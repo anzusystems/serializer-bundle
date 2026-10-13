@@ -11,11 +11,35 @@ use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 
-final readonly class HandlerResolver
+/**
+ * Handlers are remembered per value type (and target type), so supportsSerialize() and supportsDeserialize() must
+ * decide by type only.
+ */
+final class HandlerResolver
 {
+    /**
+     * @var array<string, HandlerInterface>
+     */
+    private array $handlerInstances = [];
+
+    /**
+     * @var array<string, class-string<HandlerInterface>>
+     */
+    private array $serializationHandlers = [];
+
+    /**
+     * @var array<string, array<string, class-string<HandlerInterface>>>
+     */
+    private array $deserializationHandlers = [];
+
+    /**
+     * @param list<class-string<HandlerInterface>> $handlers
+     * @param array<class-string<HandlerInterface>, true> $nonSharedHandlers
+     */
     public function __construct(
-        private ContainerInterface $handlerLocator,
-        private array $handlers,
+        private readonly ContainerInterface $handlerLocator,
+        private readonly array $handlers,
+        private readonly array $nonSharedHandlers = [],
     ) {
     }
 
@@ -24,11 +48,11 @@ final readonly class HandlerResolver
      */
     public function getHandler(string $handlerClass): HandlerInterface
     {
-        try {
-            return $this->handlerLocator->get($handlerClass);
-        } catch (NotFoundExceptionInterface|ContainerExceptionInterface $exception) {
-            throw new SerializerException('Unable to get handler.', 0, $exception);
+        if (isset($this->nonSharedHandlers[$handlerClass])) {
+            return $this->fetchHandler($handlerClass);
         }
+
+        return $this->handlerInstances[$handlerClass] ??= $this->fetchHandler($handlerClass);
     }
 
     /**
@@ -36,21 +60,14 @@ final readonly class HandlerResolver
      */
     public function getSerializationHandler(mixed $value, ?string $customHandler): HandlerInterface
     {
-        try {
-            if (false === empty($customHandler)) {
-                return $this->handlerLocator->get($customHandler);
-            }
-            /** @var class-string<HandlerInterface> $handler */
-            foreach ($this->handlers as $handler) {
-                if ($handler::supportsSerialize($value)) {
-                    return $this->handlerLocator->get($handler);
-                }
-            }
-        } catch (NotFoundExceptionInterface|ContainerExceptionInterface $exception) {
-            throw new SerializerException('Unable to get handler.', 0, $exception);
+        if (false === empty($customHandler)) {
+            return $this->getHandler($customHandler);
         }
 
-        throw new SerializerException('Unable to determine serialization handler');
+        return $this->getHandler($this->serializationHandlers[self::getValueType($value)] ??= $this->findHandler(
+            static fn (string $handler): bool => $handler::supportsSerialize($value),
+            'serialization',
+        ));
     }
 
     /**
@@ -61,21 +78,14 @@ final readonly class HandlerResolver
         string $type,
         ?string $customHandler
     ): HandlerInterface {
-        try {
-            if (false === empty($customHandler)) {
-                return $this->handlerLocator->get($customHandler);
-            }
-            /** @var class-string<HandlerInterface> $handler */
-            foreach ($this->handlers as $handler) {
-                if ($handler::supportsDeserialize($value, $type)) {
-                    return $this->handlerLocator->get($handler);
-                }
-            }
-        } catch (NotFoundExceptionInterface|ContainerExceptionInterface $exception) {
-            throw new SerializerException('Unable to get handler.', 0, $exception);
+        if (false === empty($customHandler)) {
+            return $this->getHandler($customHandler);
         }
 
-        throw new SerializerException('Unable to determine deserialization handler');
+        return $this->getHandler($this->deserializationHandlers[self::getValueType($value)][$type] ??= $this->findHandler(
+            static fn (string $handler): bool => $handler::supportsDeserialize($value, $type),
+            'deserialization',
+        ));
     }
 
     /**
@@ -83,21 +93,52 @@ final readonly class HandlerResolver
      */
     public function getDescriptionHandler(string $property, Metadata $metadata): HandlerInterface
     {
-        try {
-            if (null !== $metadata->customHandler && '' !== $metadata->customHandler) {
-                return $this->handlerLocator->get($metadata->customHandler);
-            }
+        if (null !== $metadata->customHandler && '' !== $metadata->customHandler) {
+            return $this->getHandler($metadata->customHandler);
+        }
 
-            /** @var class-string<HandlerInterface> $handler */
-            foreach ($this->handlers as $handler) {
-                if ($handler::supportsDescribe($property, $metadata)) {
-                    return $this->handlerLocator->get($handler);
-                }
+        return $this->getHandler($this->findHandler(
+            static fn (string $handler): bool => $handler::supportsDescribe($property, $metadata),
+            'description',
+        ));
+    }
+
+    /**
+     * get_debug_type() names an anonymous class only by its first parent or interface, so two such classes would share
+     * one remembered handler.
+     */
+    private static function getValueType(mixed $value): string
+    {
+        return is_object($value) ? $value::class : get_debug_type($value);
+    }
+
+    /**
+     * @param callable(class-string<HandlerInterface>): bool $supports
+     *
+     * @return class-string<HandlerInterface>
+     *
+     * @throws SerializerException
+     */
+    private function findHandler(callable $supports, string $purpose): string
+    {
+        foreach ($this->handlers as $handler) {
+            if ($supports($handler)) {
+                return $handler;
             }
+        }
+
+        throw new SerializerException(sprintf('Unable to determine %s handler', $purpose));
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    private function fetchHandler(string $handlerClass): HandlerInterface
+    {
+        try {
+            return $this->handlerLocator->get($handlerClass);
         } catch (NotFoundExceptionInterface|ContainerExceptionInterface $exception) {
             throw new SerializerException('Unable to get handler.', 0, $exception);
         }
-
-        throw new SerializerException('Unable to determine description handler');
     }
 }

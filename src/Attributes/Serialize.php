@@ -6,6 +6,7 @@ namespace AnzuSystems\SerializerBundle\Attributes;
 
 use AnzuSystems\SerializerBundle\Metadata\ContainerParam;
 use Attribute;
+use Doctrine\Common\Collections\Order;
 
 #[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_METHOD)]
 final class Serialize
@@ -14,7 +15,7 @@ final class Serialize
     public const DISCRIMINATOR_COLUMN = 'discriminator';
 
     /**
-     * @param null|array<string, 'ASC'|'DESC'> $orderBy
+     * @param null|array<string, Order|'ASC'|'DESC'> $orderBy
      */
     public function __construct(
         public ?string $serializedName = null,

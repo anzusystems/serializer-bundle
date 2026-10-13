@@ -38,6 +38,10 @@ final class SerializerHandlerCompilerPass implements CompilerPassInterface
             ->getDefinition(HandlerResolver::class)
             ->setArgument('$handlerLocator', $handlerLocator)
             ->setArgument('$handlers', $handlers)
+            ->setArgument('$nonSharedHandlers', array_fill_keys(array_filter(
+                $handlers,
+                static fn (string $handler): bool => false === $container->findDefinition($handler)->isShared(),
+            ), true))
         ;
     }
 }

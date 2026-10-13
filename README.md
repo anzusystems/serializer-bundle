@@ -79,7 +79,7 @@ To be able to (de)serialize objects, the property (or method) of that object mus
     private array $itemsArray;
 
     // Serialize collection of entities as IDs ordered by position.
-    #[Serialize(handler: EntityIdHandler::class, type: Author::class, orderBy: ['position' => Criteria::ASC])]
+    #[Serialize(handler: EntityIdHandler::class, type: Author::class, orderBy: ['position' => Order::Ascending])]
     protected Collection $authors;
 
     // Override type for deserialization based on provided "discriminator" field in json.
@@ -180,6 +180,10 @@ In case you want always automatically all properties of the before-mentioned typ
         return is_a($type, Geolocation::class, true) && is_array($value);
     }
 ```
+
+`supportsSerialize()` must decide by the class or type of `$value` only (`instanceof`, `is_scalar()`, `is_array()`),
+never by its content, and `supportsDeserialize()` by that and `$type`. The resolved handler is remembered per value type
+(and target type) for the lifetime of the service and reused for every later value of the same types.
 
 In case you want multiple automatic handlers that can both support the same thing, you can set priority with which the handler will be chosen. 
 In that case, add the following method (higher priority will be chosen first):
