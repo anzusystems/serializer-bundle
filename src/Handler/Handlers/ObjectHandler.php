@@ -14,6 +14,7 @@ use AnzuSystems\SerializerBundle\Service\JsonSerializer;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Collections\Criteria;
+use Doctrine\Common\Collections\Order;
 use Doctrine\Common\Collections\Selectable;
 use Symfony\Component\TypeInfo\TypeIdentifier;
 
@@ -44,7 +45,7 @@ final class ObjectHandler extends AbstractHandler
     {
         if (null !== $metadata->orderBy && $value instanceof Selectable) {
             $criteria = Criteria::create()
-                ->orderBy($metadata->orderBy);
+                ->orderBy(array_map(static fn (string $direction): Order => Order::from($direction), $metadata->orderBy));
 
             return $this->jsonSerializer->toArray($value->matching($criteria), $metadata, $context);
         }
