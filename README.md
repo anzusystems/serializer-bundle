@@ -79,7 +79,7 @@ To be able to (de)serialize objects, the property (or method) of that object mus
     private array $itemsArray;
 
     // Serialize collection of entities as IDs ordered by position.
-    #[Serialize(handler: EntityIdHandler::class, type: Author::class, orderBy: ['position' => 'ASC'])]
+    #[Serialize(handler: EntityIdHandler::class, type: Author::class, orderBy: ['position' => Order::Ascending])]
     protected Collection $authors;
 
     // Override type for deserialization based on provided "discriminator" field in json.

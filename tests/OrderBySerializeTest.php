@@ -16,11 +16,12 @@ final class OrderBySerializeTest extends AbstractTestCase
      */
     public function testSelectableIsSerializedInTheAttributeOrder(): void
     {
-        $dto = new OrderedBarsDto(new ArrayCollection([new BarDto(1, 'a'), new BarDto(3, 'c'), new BarDto(2, 'b')]));
+        $bars = static fn (): ArrayCollection => new ArrayCollection([new BarDto(1, 'a'), new BarDto(3, 'c'), new BarDto(2, 'b')]);
 
         self::assertSame(
-            '{"bars":[{"qux":3,"quux":"c"},{"qux":2,"quux":"b"},{"qux":1,"quux":"a"}]}',
-            $this->serializer->serialize($dto),
+            '{"barsByEnum":[{"qux":3,"quux":"c"},{"qux":2,"quux":"b"},{"qux":1,"quux":"a"}],'
+            . '"barsByString":[{"qux":1,"quux":"a"},{"qux":2,"quux":"b"},{"qux":3,"quux":"c"}]}',
+            $this->serializer->serialize(new OrderedBarsDto($bars(), $bars())),
         );
     }
 }

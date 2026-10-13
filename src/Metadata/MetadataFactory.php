@@ -7,6 +7,7 @@ namespace AnzuSystems\SerializerBundle\Metadata;
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
 use AnzuSystems\SerializerBundle\DependencyInjection\AnzuSystemsSerializerExtension;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use Doctrine\Common\Collections\Order;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
@@ -98,7 +99,7 @@ final readonly class MetadataFactory
                 $attribute->strategy,
                 $attribute->persistedName,
                 $attribute->discriminatorMap,
-                orderBy: $attribute->orderBy,
+                orderBy: self::resolveOrderBy($attribute),
             );
         }
 
@@ -181,7 +182,7 @@ final readonly class MetadataFactory
             $attribute->handler,
             $this->resolveCustomType($attribute),
             $attribute->strategy,
-            orderBy: $attribute->orderBy,
+            orderBy: self::resolveOrderBy($attribute),
         );
     }
 
@@ -261,7 +262,7 @@ final readonly class MetadataFactory
             $attribute->strategy,
             $attribute->persistedName,
             $attribute->discriminatorMap,
-            orderBy: $attribute->orderBy,
+            orderBy: self::resolveOrderBy($attribute),
             getterSetterStrategy: $getterSetterStrategy,
         );
     }
@@ -289,6 +290,21 @@ final readonly class MetadataFactory
         }
 
         return $attribute->type;
+    }
+
+    /**
+     * @return null|array<string, 'ASC'|'DESC'>
+     */
+    private static function resolveOrderBy(Serialize $attribute): ?array
+    {
+        if (null === $attribute->orderBy) {
+            return null;
+        }
+
+        return array_map(
+            static fn (Order|string $direction): string => $direction instanceof Order ? $direction->value : $direction,
+            $attribute->orderBy,
+        );
     }
 
     /**
