@@ -24,7 +24,6 @@ use AnzuSystems\SerializerBundle\Service\JsonSerializer;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Nelmio\ApiDocBundle\ModelDescriber\ModelDescriberInterface;
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
@@ -119,7 +118,7 @@ final class AnzuSystemsSerializerExtension extends Extension
         $container->setDefinition(
             MetadataRegistry::class,
             (new Definition(MetadataRegistry::class))
-                ->setArgument('$appCache', new Reference(CacheItemPoolInterface::class))
+                ->setArgument('$appCache', new Reference($config[Configuration::CONFIG_METADATA_CACHE_POOL]))
                 ->setArgument('$appLogger', new Reference(LoggerInterface::class))
                 ->setArgument('$metadataFactory', new Reference(MetadataFactory::class))
         );
