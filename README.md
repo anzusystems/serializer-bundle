@@ -38,6 +38,16 @@ anzu_systems_serializer:
   date_format: 'Y-m-d\TH:i:s.u\Z'
 ```
 
+Class metadata is cached in the pool that autowires as `Psr\Cache\CacheItemPoolInterface`, usually `cache.app`.
+The metadata depends only on your code, so a pool that is rebuilt with every deploy fits it better. Symfony's
+`cache.system` is such a pool, and it already keeps the metadata of the Symfony validator and serializer:
+
+```yaml
+# config/packages/anzu_systems_serializer.yaml
+anzu_systems_serializer:
+  metadata_cache_pool: cache.system
+```
+
 ### Attributes
 
 To be able to (de)serialize objects, the property (or method) of that object must have `AnzuSystems\SerializerBundle\Attributes\Serialize` attribute.
