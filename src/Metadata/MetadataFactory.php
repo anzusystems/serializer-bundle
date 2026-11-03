@@ -34,7 +34,7 @@ final readonly class MetadataFactory
     {
         try {
             $reflection = new ReflectionClass($className);
-        } catch (ReflectionException $exception) {
+        } catch (ReflectionException $exception) { // @phpstan-ignore catch.neverThrown (class-string is not checked at runtime, a missing class still throws)
             throw new SerializerException('Cannot create reflection for ' . $className, 0, $exception);
         }
 
@@ -297,7 +297,6 @@ final readonly class MetadataFactory
         if ($attribute->type instanceof ContainerParam) {
             $paramName = $attribute->type->paramName;
             if ($this->parameterBag->has($paramName)) {
-                /** @psalm-suppress PossiblyInvalidCast */
                 return (string) $this->parameterBag->get($paramName);
             }
 

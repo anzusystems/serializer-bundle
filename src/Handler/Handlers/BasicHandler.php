@@ -43,6 +43,7 @@ final class BasicHandler extends AbstractHandler
             return null;
         }
 
+        // @phpstan-ignore match.unhandled (a null for a non-nullable non-scalar type ends in UnhandledMatchError, kept as is)
         return match ($metadata->type) {
             TypeIdentifier::STRING->value => (string) $value,
             TypeIdentifier::INT->value => (int) $value,

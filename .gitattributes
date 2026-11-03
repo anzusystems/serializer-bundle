@@ -12,4 +12,4 @@ symfony.lock export-ignore
 bin export-ignore
 docker export-ignore
 ecs.php export-ignore
-psalm.xml export-ignore
+phpstan.neon export-ignore

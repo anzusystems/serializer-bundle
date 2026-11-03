@@ -38,20 +38,17 @@ final class SerializerValueResolver implements ValueResolverInterface
         $class = $argument->getType();
         $type = $attribute->type ?? $class;
 
-        /** @psalm-suppress ArgumentTypeCoercion */
         return [$this->getValue($request, $type)];
     }
 
     /**
-     * @template T
+     * @template T of object
      *
      * @param class-string<T> $type
      *
-     * @return T|iterable<int|string, T>
+     * @return T
      *
      * @throws SerializerException
-     *
-     * @psalm-suppress MismatchingDocblockReturnType
      */
     private function getValue(Request $request, string $type): object
     {

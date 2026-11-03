@@ -76,11 +76,11 @@ final class EnumHandler extends AbstractHandler
     {
         $description = parent::describe($property, $metadata);
 
-        /** @var UnitEnum $enumClass */
+        /** @var class-string<UnitEnum> $enumClass */
         $enumClass = $metadata->type;
         $enums = [];
         foreach ($enumClass::cases() as $enumCase) {
-            $enums[] = $enumCase->value;
+            $enums[] = $enumCase->value; // @phpstan-ignore property.notFound (a pure enum describes as null; describing it by name would change the OpenAPI output)
         }
         $description['enum'] = $enums;
         $description['type'] = TypeIdentifier::STRING->value;

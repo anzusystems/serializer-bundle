@@ -101,7 +101,6 @@ final class EntityIdHandler extends AbstractHandler implements BatchDeserializeH
             return $entities;
         }
         $deserializeType = $metadata->customType ?? $metadata->type;
-        /** @psalm-suppress ArgumentTypeCoercion */
         if (method_exists($deserializeType, 'getId') && (is_int($value) || is_string($value))) {
             return $this->entityManager->find($deserializeType, $value);
         }
@@ -137,12 +136,10 @@ final class EntityIdHandler extends AbstractHandler implements BatchDeserializeH
      */
     private function loadEntities(array $ids, string $entityClass): array
     {
-        /** @psalm-suppress ArgumentTypeCoercion */
         $classMetadata = $this->entityManager->getClassMetadata($entityClass);
 
         $entities = [];
         foreach ($ids as $id) {
-            /** @psalm-suppress ArgumentTypeCoercion */
             $entity = is_int($id) || is_string($id)
                 ? $this->tryGetManaged($id, $classMetadata)
                 : $this->entityManager->find($entityClass, $id);
@@ -162,7 +159,6 @@ final class EntityIdHandler extends AbstractHandler implements BatchDeserializeH
     private function preloadEntities(array $ids, string $entityClass): void
     {
         try {
-            /** @psalm-suppress ArgumentTypeCoercion */
             $classMetadata = $this->entityManager->getClassMetadata($entityClass);
         } catch (MappingException) {
             // The handler also serves value objects that merely carry a getId(), and warming up is never worth
@@ -183,7 +179,6 @@ final class EntityIdHandler extends AbstractHandler implements BatchDeserializeH
             return;
         }
 
-        /** @psalm-suppress ArgumentTypeCoercion */
         $this->entityManager->getRepository($entityClass)
             ->findBy([$classMetadata->getSingleIdentifierFieldName() => $unmanagedIds]);
     }
@@ -192,7 +187,6 @@ final class EntityIdHandler extends AbstractHandler implements BatchDeserializeH
     {
         $identifier = $classMetadata->getSingleIdentifierFieldName();
 
-        /** @psalm-suppress ArgumentTypeCoercion */
         $entity = $this->entityManager->getUnitOfWork()
             ->tryGetById(
                 [$identifier => $this->toIdentifierValue($id, $identifier, $classMetadata)],
@@ -234,7 +228,6 @@ final class EntityIdHandler extends AbstractHandler implements BatchDeserializeH
 
             return $id;
         }, $ids);
-        /** @psalm-suppress ArgumentTypeCoercion */
         $dqb = $this->entityManager->getRepository((string) $metadata->customType)
             ->createQueryBuilder('entity');
         $dqb
@@ -248,7 +241,6 @@ final class EntityIdHandler extends AbstractHandler implements BatchDeserializeH
             }
         }
         $resultIds = array_map(function (null|int|string $id) use ($uuids) {
-            /** @psalm-suppress TypeDoesNotContainType */
             if (class_exists(Uuid::class) && $uuids) {
                 return Uuid::fromString((string) $id);
             }
@@ -263,7 +255,6 @@ final class EntityIdHandler extends AbstractHandler implements BatchDeserializeH
     private function describeReturnType(string $type): string
     {
         try {
-            /** @psalm-suppress ArgumentTypeCoercion */
             $reflection = new ReflectionMethod($type, 'getId');
         } catch (ReflectionException $e) {
             return $type;
