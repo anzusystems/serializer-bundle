@@ -11,10 +11,12 @@ final readonly class ClassMetadata
     /**
      * @param array<string, Metadata> $metadata
      * @param array<string, Metadata> $constructorMetadata
+     * @param list<string> $optionalConstructorArguments
      */
     public function __construct(
         private array $metadata,
-        private array $constructorMetadata
+        private array $constructorMetadata,
+        private array $optionalConstructorArguments = [],
     ) {
     }
 
@@ -49,5 +51,10 @@ final readonly class ClassMetadata
     public function getConstructorMetadata(): array
     {
         return $this->constructorMetadata;
+    }
+
+    public function isOptionalConstructorArgument(string $name): bool
+    {
+        return in_array($name, $this->optionalConstructorArguments, true);
     }
 }

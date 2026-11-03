@@ -20,6 +20,7 @@ final class JsonSerializer
     public function __construct(
         private readonly HandlerResolver $handlerResolver,
         private readonly MetadataRegistry $metadataRegistry,
+        private readonly PropertyAccessor $propertyAccessor = new PropertyAccessor(),
     ) {
     }
 
@@ -88,9 +89,12 @@ final class JsonSerializer
     {
         $output = [];
         foreach ($this->metadataRegistry->get($data::class)->getAll() as $name => $metadata) {
+            if (false === $metadata->readable) {
+                continue;
+            }
             $value = array_key_exists($name, $preparedValues)
                 ? $preparedValues[$name]
-                : $this->getValue($data, $metadata);
+                : $this->propertyAccessor->getValue($data, $metadata);
 
             if (null === $value && !$context->shouldSerializeNull()) {
                 continue;
@@ -127,11 +131,11 @@ final class JsonSerializer
 
             foreach ($this->metadataRegistry->get($item::class)->getAll() as $name => $metadata) {
                 $handlerClass = $metadata->customHandler;
-                if (null === $handlerClass || false === is_a($handlerClass, BatchSerializeHandlerInterface::class, true)) {
+                if (null === $handlerClass || false === $metadata->readable || false === is_a($handlerClass, BatchSerializeHandlerInterface::class, true)) {
                     continue;
                 }
 
-                $value = $this->getValue($item, $metadata);
+                $value = $this->propertyAccessor->getValue($item, $metadata);
                 $preparedValues[spl_object_id($item)][$name] = $value;
                 $batches[$handlerClass][] = new BatchItem($value, $metadata);
             }
@@ -145,10 +149,5 @@ final class JsonSerializer
         }
 
         return $preparedValues;
-    }
-
-    private function getValue(object $data, Metadata $metadata): mixed
-    {
-        return $metadata->getterSetterStrategy ? $data->{$metadata->getter}() : $data->{$metadata->property};
     }
 }

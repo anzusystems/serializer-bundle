@@ -8,6 +8,7 @@ use AnzuSystems\SerializerBundle\Attributes\Serialize;
 use AnzuSystems\SerializerBundle\DependencyInjection\AnzuSystemsSerializerExtension;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use Doctrine\Common\Collections\Order;
+use PropertyHookType;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
@@ -16,7 +17,6 @@ use ReflectionProperty;
 use ReflectionUnionType;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\TypeInfo\TypeIdentifier;
-use const PHP_VERSION;
 
 final readonly class MetadataFactory
 {
@@ -40,32 +40,37 @@ final readonly class MetadataFactory
 
         $propertyMetadata = $this->buildPropertyMetadata($reflection);
 
-        return new ClassMetadata(
+        return $this->buildClassMetadata(
             array_merge(
                 $propertyMetadata,
                 $this->buildMethodMetadata($reflection)
             ),
-            $this->buildConstructorMetadata($propertyMetadata, $reflection),
+            $propertyMetadata,
+            $reflection,
         );
     }
 
     /**
+     * @param array<string, Metadata> $metadata
+     * @param array<string, Metadata> $propertyMetadata
+     *
      * @throws SerializerException
      */
-    private function buildConstructorMetadata(array $propertyMetadata, ReflectionClass $reflection): array
+    private function buildClassMetadata(array $metadata, array $propertyMetadata, ReflectionClass $reflection): ClassMetadata
     {
         $constructorMethod = $reflection->getConstructor();
         if (null === $constructorMethod) {
             // the class has no constructor
-            return [];
+            return new ClassMetadata($metadata, []);
         }
 
         if (0 === ($constructorMethod->getModifiers() & ReflectionMethod::IS_PUBLIC)) {
             // the class has private/protected constructor
-            return [];
+            return new ClassMetadata($metadata, []);
         }
 
-        $metadata = [];
+        $constructorMetadata = [];
+        $optionalConstructorArguments = [];
         foreach ($constructorMethod->getParameters() as $parameter) {
             $attribute = $this->findRelatedClassPropertyAttribute($reflection, $parameter->getName());
 
@@ -78,7 +83,10 @@ final readonly class MetadataFactory
             $dataName = $attribute->serializedName ?? $parameter->getName();
             $propertyMeta = $propertyMetadata[$dataName] ?? null;
             if ($parameter->isPromoted() && $propertyMeta) {
-                $metadata[$dataName] = $propertyMeta;
+                $constructorMetadata[$dataName] = $propertyMeta;
+                if ($parameter->isDefaultValueAvailable()) {
+                    $optionalConstructorArguments[] = $dataName;
+                }
 
                 continue;
             }
@@ -88,7 +96,7 @@ final readonly class MetadataFactory
                 continue;
             }
 
-            $metadata[$dataName] = new Metadata(
+            $constructorMetadata[$dataName] = new Metadata(
                 (string) $parameter->getType(),
                 $parameter->allowsNull(),
                 '',
@@ -103,7 +111,7 @@ final readonly class MetadataFactory
             );
         }
 
-        return $metadata;
+        return new ClassMetadata($metadata, $constructorMetadata, $optionalConstructorArguments);
     }
 
     /**
@@ -212,51 +220,15 @@ final readonly class MetadataFactory
                 }
             }
         }
-        $getter = $setter = null;
-        $getterSetterStrategy = true;
-        if (version_compare(PHP_VERSION, '8.4.0', '>=') && $property->hasHooks()) {
-            $getterSetterStrategy = false;
-            /** @psalm-suppress UndefinedClass */
-            if ($property->hasHook(\PropertyHookType::Get)) {
-                $getter = $property->getName();
-            }
-            /** @psalm-suppress UndefinedClass */
-            if ($property->hasHook(\PropertyHookType::Set)) {
-                $setter = $property->getName();
-            }
-        }
-        if ($property->isPublic()) {
-            $getterSetterStrategy = false;
-            $getter = $setter = $property->getName();
-            if (version_compare(PHP_VERSION, '8.4.0', '>=') && $property->isPrivateSet()) {
-                $setter = null;
-            }
-        }
-        if ($getterSetterStrategy) {
-            $getter = $getterPrefix . ucfirst($property->getName());
-            $declaringClass = $property->getDeclaringClass();
-            if (false === $declaringClass->hasMethod($getter)) {
-                // fallback to "get" prefix
-                $getterFallback = 'get' . ucfirst($property->getName());
-                if (false === $declaringClass->hasMethod($getterFallback)) {
-                    throw new SerializerException('Getter method ' . $getter . ' or ' . $getterFallback . ' not found in ' . $declaringClass->getName() . '.');
-                }
-
-                $getter = $getterFallback;
-            }
-            $setter = 'set' . ucfirst($property->getName());
-            if (false === $declaringClass->hasMethod($setter)) {
-                // setter is required for deserialization only
-                $setter = null;
-            }
-        }
+        $getter = $this->findGetter($property, $getterPrefix);
+        $getterSetterStrategy = is_string($getter) && false === $property->isPublic() && false === $property->hasHooks();
 
         return new Metadata(
             $type,
             (bool) $propertyType?->allowsNull(),
-            (string) $getter,
+            $getterSetterStrategy ? (string) $getter : $property->getName(),
             $property->getName(),
-            $setter,
+            $this->resolveSetter($property, $getterSetterStrategy),
             $attribute->handler,
             $this->resolveCustomType($attribute),
             $attribute->strategy,
@@ -264,7 +236,53 @@ final readonly class MetadataFactory
             $attribute->discriminatorMap,
             orderBy: self::resolveOrderBy($attribute),
             getterSetterStrategy: $getterSetterStrategy,
+            declaringClass: $property->getDeclaringClass()
+                ->getName(),
+            readable: $getterSetterStrategy || $this->isPropertyReadable($property),
+            promoted: $property->isPromoted(),
         );
+    }
+
+    private function findGetter(ReflectionProperty $property, string $getterPrefix): ?string
+    {
+        $declaringClass = $property->getDeclaringClass();
+        foreach ([$getterPrefix, 'get'] as $prefix) {
+            $getter = $prefix . ucfirst($property->getName());
+            if ($declaringClass->hasMethod($getter)) {
+                return $getter;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveSetter(ReflectionProperty $property, bool $getterSetterStrategy): ?string
+    {
+        if ($getterSetterStrategy) {
+            $setter = 'set' . ucfirst($property->getName());
+
+            return $property->getDeclaringClass()
+                ->hasMethod($setter) ? $setter : null;
+        }
+
+        return $this->isPropertyWritable($property) ? $property->getName() : null;
+    }
+
+    private function isPropertyReadable(ReflectionProperty $property): bool
+    {
+        return false === $property->isVirtual() || $property->hasHook(PropertyHookType::Get);
+    }
+
+    /**
+     * A promoted property is filled by the constructor, and a readonly one cannot be written again.
+     */
+    private function isPropertyWritable(ReflectionProperty $property): bool
+    {
+        if ($property->isPromoted()) {
+            return false;
+        }
+
+        return false === $property->isVirtual() || $property->hasHook(PropertyHookType::Set);
     }
 
     /**

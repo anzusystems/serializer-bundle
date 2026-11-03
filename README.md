@@ -116,6 +116,56 @@ To be able to (de)serialize objects, the property (or method) of that object mus
     public function getViolations(): Collection
 ```
 
+### Properties
+
+A `#[Serialize]` property is read and written in one of two ways:
+
+- A `private` or `protected` property without hooks that has a getter (`getName()`, or `isEnabled()` for a `bool`) is
+  read through the getter and written through the setter (`setName()`). Without a setter it is not written.
+- Any other property is read and written directly, in the scope of the class that declares it. This covers `public`,
+  `private` and `protected` properties, asymmetric visibility (`public private(set)`, `public protected(set)`) and
+  property hooks, which run as usual.
+
+```php
+    // Written from the input, read by everyone, changed by nobody else.
+    #[Serialize]
+    public private(set) string $name = '';
+
+    // The set hook runs on deserialization.
+    #[Serialize]
+    public string $title = '' {
+        set => trim($value);
+    }
+
+    // Virtual, get only: serialized, ignored on input, documented as readOnly.
+    #[Serialize]
+    public string $label {
+        get => strtoupper($this->name);
+    }
+
+    // Virtual, set only: written from the input, left out of the output, documented as writeOnly.
+    #[Serialize]
+    public string $rawName {
+        set(string $value) {
+            $this->name = trim($value);
+        }
+    }
+```
+
+Promoted properties are filled by the constructor and are not written again after it, so they can be `readonly`. A
+promoted parameter that is missing from the data, or `null` for a non-nullable type, gets its default value; a required
+parameter without a default throws a `SerializerException` that names it.
+
+```php
+    public function __construct(
+        #[Serialize]
+        public readonly string $name,
+        #[Serialize]
+        public readonly int $limit = 10,
+    ) {
+    }
+```
+
 ### Built-in handlers
 
 - Auto-resolved handlers based on type:
@@ -355,12 +405,11 @@ It's best to have a look at the `AnzuSystems\SerializerBundle\Handler\Handlers` 
 
 - Iterables with keys will be automatically (de)serialized into an associative array or indexed collection.
 - Currently, only json format is supported.
-- Every property that you want to (de)serialize, must have a public getter and setter.
-    - Setter name example for property $email: `setEmail`
-    - Getter name example for property $email: `getEmail`
-    - Getter name example for boolean properties: `isEnabled`
-- Constructor of an object that you want to (de)serialize cannot have required parameters.
-    - You can also use public static functions to instantiate an object if you want required parameters. For instance:
+- How a property is read and written is described in *Properties* above.
+- An object is created through its public constructor. Each required parameter must be a `#[Serialize]` property that
+  is present in the data.
+    - When your own code needs required parameters that the input does not carry, put them into a public static
+      function instead. For instance:
 
 ```php
 public static function getInstance(Post $decorated): self

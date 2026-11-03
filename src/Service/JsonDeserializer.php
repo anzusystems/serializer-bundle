@@ -10,7 +10,6 @@ use AnzuSystems\SerializerBundle\Handler\BatchItem;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
 use AnzuSystems\SerializerBundle\Handler\Handlers\BatchDeserializeHandlerInterface;
 use AnzuSystems\SerializerBundle\Metadata\ClassMetadata;
-use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use Doctrine\Common\Collections\Collection;
 use JsonException;
@@ -21,6 +20,7 @@ final class JsonDeserializer
     public function __construct(
         private readonly HandlerResolver $handlerResolver,
         private readonly MetadataRegistry $metadataRegistry,
+        private readonly PropertyAccessor $propertyAccessor = new PropertyAccessor(),
     ) {
     }
 
@@ -97,7 +97,7 @@ final class JsonDeserializer
             }
 
             try {
-                $metadata->getterSetterStrategy ? $object->{$metadata->setter}($value) : $object->{$metadata->property} = $value;
+                $this->propertyAccessor->setValue($object, $metadata, $value);
             } catch (Throwable $exception) {
                 throw new SerializerException('Unable to deserialize "' . $name . '". Check type.', 0, $exception);
             }
@@ -184,25 +184,36 @@ final class JsonDeserializer
         }
 
         // initialize object with parameters
-        $params = [];
+        $arguments = [];
         foreach ($constructorMetadata as $name => $metadata) {
-            /** @var Metadata $metadata */
-            if (false === isset($data[$name], $propMetadata[$name])) {
-                throw new SerializerException(
-                    sprintf(
-                        'Unable to deserialize "%s". Required constructor property "%s" missing in data or serializable properties.',
-                        $className,
-                        $name
-                    )
-                );
+            $isProvided = isset($propMetadata[$name])
+                && array_key_exists($name, $data)
+                && (null !== $data[$name] || $metadata->isNullable);
+            if ($isProvided) {
+                $dataValue = $data[$name];
+                $value = $this->handlerResolver
+                    ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
+                    ->deserialize($dataValue, $metadata);
+                if (null !== $value || $metadata->isNullable) {
+                    $arguments[(string) $metadata->property] = $value;
+
+                    continue;
+                }
             }
 
-            $dataValue = $data[$name];
-            $params[] = $this->handlerResolver
-                ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
-                ->deserialize($dataValue, $metadata);
+            if ($objectMetadata->isOptionalConstructorArgument($name)) {
+                continue;
+            }
+
+            throw new SerializerException(
+                sprintf(
+                    'Unable to deserialize "%s". Required constructor property "%s" missing in data or serializable properties.',
+                    $className,
+                    $name
+                )
+            );
         }
 
-        return new $className(...$params);
+        return new $className(...$arguments);
     }
 }

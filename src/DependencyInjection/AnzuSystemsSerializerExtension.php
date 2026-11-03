@@ -21,6 +21,7 @@ use AnzuSystems\SerializerBundle\Request\ValueResolver\SerializerValueResolver;
 use AnzuSystems\SerializerBundle\Serializer;
 use AnzuSystems\SerializerBundle\Service\JsonDeserializer;
 use AnzuSystems\SerializerBundle\Service\JsonSerializer;
+use AnzuSystems\SerializerBundle\Service\PropertyAccessor;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use Nelmio\ApiDocBundle\ModelDescriber\ModelDescriberInterface;
@@ -124,10 +125,16 @@ final class AnzuSystemsSerializerExtension extends Extension
         );
 
         $container->setDefinition(
+            PropertyAccessor::class,
+            new Definition(PropertyAccessor::class)
+        );
+
+        $container->setDefinition(
             JsonSerializer::class,
             (new Definition(JsonSerializer::class))
                 ->setArgument('$handlerResolver', new Reference(HandlerResolver::class))
                 ->setArgument('$metadataRegistry', new Reference(MetadataRegistry::class))
+                ->setArgument('$propertyAccessor', new Reference(PropertyAccessor::class))
         );
 
         $container->setDefinition(
@@ -135,6 +142,7 @@ final class AnzuSystemsSerializerExtension extends Extension
             (new Definition(JsonDeserializer::class))
                 ->setArgument('$handlerResolver', new Reference(HandlerResolver::class))
                 ->setArgument('$metadataRegistry', new Reference(MetadataRegistry::class))
+                ->setArgument('$propertyAccessor', new Reference(PropertyAccessor::class))
         );
 
         $container->setDefinition(

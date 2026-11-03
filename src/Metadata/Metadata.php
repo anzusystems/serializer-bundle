@@ -11,6 +11,7 @@ final class Metadata
      * @param class-string|string|null $customType
      * @param array<string, class-string>|null $discriminatorMap
      * @param null|array<string, 'ASC'|'DESC'> $orderBy
+     * @param class-string|null $declaringClass
      */
     public function __construct(
         public string $type,
@@ -25,6 +26,9 @@ final class Metadata
         public ?array $discriminatorMap = null,
         public ?array $orderBy = null,
         public bool $getterSetterStrategy = true,
+        public ?string $declaringClass = null,
+        public bool $readable = true,
+        public bool $promoted = false,
     ) {
     }
 }

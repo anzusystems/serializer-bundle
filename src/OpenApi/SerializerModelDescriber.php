@@ -141,6 +141,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
             'property' => $property,
             'title' => SerializerHelper::getClassBaseName($className),
             'readOnly' => $description['readOnly'] ?? false,
+            'writeOnly' => $description['writeOnly'] ?? false,
             'nullable' => $description['nullable'] ?? false,
         ]);
         if ($this->supports($nestedModel)) {
