@@ -12,12 +12,12 @@ use ReflectionProperty;
 final class PropertyAccessor
 {
     /**
-     * @var array<string, Closure>
+     * @var array<string, array<string, Closure>>
      */
     private array $readers = [];
 
     /**
-     * @var array<string, Closure>
+     * @var array<string, array<string, Closure>>
      */
     private array $writers = [];
 
@@ -30,11 +30,11 @@ final class PropertyAccessor
             return $object->{$metadata->getter}();
         }
 
-        [$declaringClass, $property] = $this->resolveProperty($metadata);
-        $reader = $this->readers[$declaringClass . '::' . $property] ??= $this->bindToClass(
-            static fn (object $object): mixed => $object->{$property},
-            $declaringClass,
-        );
+        if (false === $metadata->readInClassScope) {
+            return $object->{$metadata->getter};
+        }
+
+        $reader = $this->readers[$metadata->declaringClass][$metadata->property] ?? $this->createReader($metadata);
 
         return $reader($object);
     }
@@ -50,13 +50,13 @@ final class PropertyAccessor
             return;
         }
 
-        [$declaringClass, $property] = $this->resolveProperty($metadata);
-        $writer = $this->writers[$declaringClass . '::' . $property] ??= $this->bindToClass(
-            static function (object $object, mixed $value) use ($property): void {
-                $object->{$property} = $value;
-            },
-            $declaringClass,
-        );
+        if (false === $metadata->writeInClassScope) {
+            $object->{(string) $metadata->setter} = $value;
+
+            return;
+        }
+
+        $writer = $this->writers[$metadata->declaringClass][$metadata->property] ?? $this->createWriter($metadata);
 
         $writer($object, $value);
     }
@@ -70,6 +70,34 @@ final class PropertyAccessor
 
         return new ReflectionProperty($declaringClass, $property)
             ->isInitialized($object);
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    private function createReader(Metadata $metadata): Closure
+    {
+        [$declaringClass, $property] = $this->resolveProperty($metadata);
+
+        return $this->readers[$declaringClass][$property] = $this->bindToClass(
+            static fn (object $object): mixed => $object->{$property},
+            $declaringClass,
+        );
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    private function createWriter(Metadata $metadata): Closure
+    {
+        [$declaringClass, $property] = $this->resolveProperty($metadata);
+
+        return $this->writers[$declaringClass][$property] = $this->bindToClass(
+            static function (object $object, mixed $value) use ($property): void {
+                $object->{$property} = $value;
+            },
+            $declaringClass,
+        );
     }
 
     /**

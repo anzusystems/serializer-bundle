@@ -59,6 +59,7 @@ inheriting from that class.
 - A promoted property is no longer described as `readOnly` in the API documentation.
 - `JsonSerializer` and `JsonDeserializer` take an optional third constructor argument, `PropertyAccessor`
   (default `new PropertyAccessor()`). Code that creates them by hand needs no change.
-- `Metadata::$getterSetterStrategy` is replaced by `$getterIsMethod` and `$setterIsMethod`.
+- `Metadata::$getterSetterStrategy` is replaced by `$getterIsMethod` and `$setterIsMethod`. `$readInClassScope` and
+  `$writeInClassScope` say whether a direct read or write needs the scope of the declaring class.
 - The metadata cache key prefix changed from `anzu_serialz_` to `anzu_serialz_v7_`, so metadata cached by 6.x is not
   read.

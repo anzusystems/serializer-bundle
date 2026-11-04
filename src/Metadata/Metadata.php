@@ -31,6 +31,8 @@ final class Metadata
         public bool $readable = true,
         public bool $promoted = false,
         public bool $constructorReadonly = false,
+        public bool $readInClassScope = false,
+        public bool $writeInClassScope = false,
     ) {
     }
 }

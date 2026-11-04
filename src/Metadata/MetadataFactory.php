@@ -281,6 +281,8 @@ final readonly class MetadataFactory
             readable: null !== $getter || $this->isPropertyReadable($property),
             promoted: $filledByConstructor,
             constructorReadonly: $property->isReadOnly() && false === $filledByConstructor && null !== $reflection->getConstructor(),
+            readInClassScope: false === $property->isPublic(),
+            writeInClassScope: false === $property->isPublic() || $property->isPrivateSet() || $property->isProtectedSet(),
         );
     }
 
