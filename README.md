@@ -158,11 +158,11 @@ PHP attributes are not inherited, so a property that a child class declares agai
 Properties promoted by the constructor of the deserialized class are filled by it, so they can be `readonly`. A
 `private` or `protected` promoted property that has a setter is written by the setter once more after the
 constructor. A property promoted by a parent constructor that the child class overrides without promoting it is written
-after the constructor. A `readonly` property that is not promoted is filled from the input, unless the constructor has
-already set it: then the input is ignored. A promoted parameter that is missing from the data, or `null` for a
-non-nullable type, gets its default value; a required parameter without a default throws a `SerializerException` that
-names it. When the constructor fails, the `SerializerException` holds the original exception as `getPrevious()`.
-Serializing a typed property that is not initialized throws a `SerializerException` that names the property.
+after the constructor. A `readonly` property that is not promoted gets its value through a constructor parameter of the
+same name. Without such a parameter it is filled from the input, unless the constructor has already set it: then the input
+is ignored. A promoted parameter that is missing from the data, or `null` for a non-nullable type, gets its default value;
+a required parameter without a default throws a `SerializerException` that names it. An exception from the constructor
+and the `Error` for a typed property that is not initialized pass through unchanged.
 
 ```php
     public function __construct(

@@ -41,9 +41,10 @@ inheriting from that class.
 - Promoted properties are filled by the constructor and are not written again after it, so a `readonly` promoted
   property can be deserialized. A non-public promoted property with a `setX()` method is the exception: its setter
   still runs after the constructor, as in 6.x.
-- A `readonly` property that is not promoted is filled from the input, unless the constructor has already set it: then
-  the input is ignored. 6.x threw a `SerializerException` for `readonly`, and skipped `private(set) readonly`. In the API
-  documentation it is `readOnly` when the class has a constructor.
+- A `readonly` property that is not promoted gets its value through a constructor parameter of the same name. Without
+  such a parameter it is filled from the input, unless the constructor has already set it: then the input is ignored.
+  6.x threw a `SerializerException` for `readonly`, and skipped `private(set) readonly`. In the API documentation it is
+  `readOnly` when the class has a constructor without that parameter.
 - A promoted parameter that is missing from the data, or `null` for a non-nullable type, gets its default value. A
   required parameter without a default still throws a `SerializerException` that names it when it is missing or `null`
   for a non-nullable type. `null` for a nullable parameter now reaches the constructor, where 6.x threw this exception.
@@ -53,11 +54,6 @@ inheriting from that class.
   a getter keeps using its getter and setter.
 - Getters and setters are looked up as public methods of the serialized class, so a child class can add them to a
   property of its parent. A `getX()` or `setX()` that is not public is not called.
-- A failed constructor during deserialization, including a private constructor or an abstract class, throws a
-  `SerializerException` with the original exception as `getPrevious()`. 6.x let the original exception through, so code
-  that catches a constructor's own exception must now read it from `getPrevious()`.
-- Serializing a typed property that is not initialized throws a `SerializerException` that names the property, not an
-  `Error`.
 - A virtual property with only a `get` hook is ignored on input and described as `readOnly` in the API documentation.
   A virtual property with only a `set` hook is left out of the output and described as `writeOnly`.
 - A promoted property is no longer described as `readOnly` in the API documentation.

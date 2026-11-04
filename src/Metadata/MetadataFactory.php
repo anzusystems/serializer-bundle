@@ -82,7 +82,7 @@ final readonly class MetadataFactory
 
             $dataName = $attribute->serializedName ?? $parameter->getName();
             $propertyMeta = $propertyMetadata[$dataName] ?? null;
-            if ($parameter->isPromoted() && $parameter->getName() === $propertyMeta?->property) {
+            if (true === $propertyMeta?->promoted && $parameter->getName() === $propertyMeta->property) {
                 if ($parameter->isDefaultValueAvailable()) {
                     if (isset($constructorMetadata[$dataName])) {
                         // a required parameter of the same data name keeps it: both cannot take one value
@@ -136,6 +136,9 @@ final readonly class MetadataFactory
             /** @var Serialize $attribute */
             $attribute = $attributes[0]->newInstance();
             $dataName = $attribute->serializedName ?? $property->getName();
+            if (isset($metadata[$dataName]) && $property->isPrivate() && $property->getDeclaringClass()->getName() !== $reflection->getName()) {
+                continue;
+            }
             $metadata[$dataName] = $this->getPropertyMetadata(
                 property: $property,
                 attribute: $attribute,
@@ -250,7 +253,7 @@ final readonly class MetadataFactory
             }
         }
         $usesAccessors = false === $property->isPublic() && false === $property->hasHooks();
-        $getter = $usesAccessors ? $this->findGetter($reflection, $property, $getterPrefix) : null;
+        $getter = $usesAccessors ? $this->findGetter(reflection: $reflection, property: $property, getterPrefix: $getterPrefix) : null;
         $setter = $usesAccessors ? $this->findPublicMethod($reflection, 'set' . ucfirst($property->getName())) : null;
         $filledByConstructor = $this->isFilledByConstructor($property, $reflection);
 
@@ -318,13 +321,18 @@ final readonly class MetadataFactory
 
     /**
      * ReflectionProperty::isPromoted() names the constructor that declares the property, which a child class may have
-     * overridden, so only the constructor of the deserialized class counts.
+     * overridden, so only the constructor of the deserialized class counts, and a parent's promoted parameter fills
+     * the parent's property, not a child's of the same name. A readonly property cannot be written after the constructor,
+     * so a parameter of its name takes the value.
      */
     private function isFilledByConstructor(ReflectionProperty $property, ReflectionClass $reflection): bool
     {
         foreach ($reflection->getConstructor()?->getParameters() ?? [] as $parameter) {
             if ($property->getName() === $parameter->getName()) {
-                return $parameter->isPromoted();
+                return $parameter->isPromoted()
+                    ? $parameter->getDeclaringClass()?->getName() === $property->getDeclaringClass()
+                        ->getName()
+                    : $property->isReadOnly();
             }
         }
 

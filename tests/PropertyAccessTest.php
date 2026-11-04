@@ -9,31 +9,33 @@ use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use AnzuSystems\SerializerBundle\Tests\Dto\AsymmetricVisibilityDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\BarDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ChildAccessorsDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\InheritedConstructorChildDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\InheritedPrivateDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\InheritedPrivatePromotedDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\InheritedPromotedNoArgumentDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\InheritedPromotedOverriddenDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\NonPublicAccessorsDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\PlainNonPublicDto;
-use AnzuSystems\SerializerBundle\Tests\Dto\PrivateConstructorDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\PrivateHookedDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\PrivateNameCollisionDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\PromotedSetterDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\PublicPropertyDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyClassDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyConstructorParameterDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyNoConstructorDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyNotPromotedDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyPromotedDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlySetByConstructorDateDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\SerializedNameCollisionDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\SetHookDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\SetterWithoutGetterDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ThrowingConstructorDto;
-use AnzuSystems\SerializerBundle\Tests\Dto\ThrowingGetterDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\UninitializedDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\UninitializedWithGetterDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\VirtualGetOnlyDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\VirtualSetOnlyDto;
+use Error;
 use InvalidArgumentException;
-use LogicException;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 final class PropertyAccessTest extends AbstractTestCase
@@ -61,49 +63,37 @@ final class PropertyAccessTest extends AbstractTestCase
         self::assertEquals($classMetadata, unserialize(serialize($classMetadata)));
     }
 
-    public function testConstructorFailureIsWrappedWithItsCause(): void
+    public function testConstructorExceptionPassesThroughUnchanged(): void
     {
-        try {
-            $this->serializer->deserialize('{"name":"anzu"}', ThrowingConstructorDto::class);
-            self::fail('The constructor failure must throw.');
-        } catch (SerializerException $exception) {
-            self::assertStringContainsString('Rejected anzu', $exception->getMessage());
-            self::assertInstanceOf(InvalidArgumentException::class, $exception->getPrevious());
-        }
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Rejected anzu');
+
+        $this->serializer->deserialize('{"name":"anzu"}', ThrowingConstructorDto::class);
     }
 
-    public function testPrivateConstructorIsWrapped(): void
-    {
-        $this->expectException(SerializerException::class);
-        $this->expectExceptionMessage(PrivateConstructorDto::class);
-
-        $this->serializer->deserialize('{"name":"anzu"}', PrivateConstructorDto::class);
-    }
-
-    /**
-     * @param class-string $declaringClass
-     */
     #[DataProvider('uninitialized')]
-    public function testUninitializedPropertyNamesItself(object $dto, string $declaringClass, string $property): void
+    public function testUninitializedPropertyStaysAnError(object $dto, string $property): void
     {
-        $this->expectException(SerializerException::class);
-        $this->expectExceptionMessage(sprintf('"%s::$%s"', $declaringClass, $property));
+        $this->expectException(Error::class);
+        $this->expectExceptionMessage(sprintf('%s::$%s must not be accessed before initialization', $dto::class, $property));
 
         $this->serializer->serialize($dto);
     }
 
     public static function uninitialized(): iterable
     {
-        yield 'read directly' => [new UninitializedDto(), UninitializedDto::class, 'direct'];
-        yield 'read through a getter' => [new UninitializedWithGetterDto(), UninitializedWithGetterDto::class, 'accessed'];
-        yield 'readonly, key missing in the input' => [new ReadonlyNoConstructorDto(), ReadonlyNoConstructorDto::class, 'id'];
+        yield 'read directly' => [new UninitializedDto(), 'direct'];
+        yield 'read through a getter' => [new UninitializedWithGetterDto(), 'accessed'];
+        yield 'readonly, key missing in the input' => [new ReadonlyNoConstructorDto(), 'id'];
     }
 
-    public function testGetterFailureIsNotReportedAsUninitialized(): void
+    public function testChildPropertyKeepsTheDataNameOfAParentsPrivateProperty(): void
     {
-        $this->expectException(LogicException::class);
+        $dto = $this->serializer->deserialize('{"id":"anzu"}', PrivateNameCollisionDto::class);
 
-        $this->serializer->serialize(new ThrowingGetterDto());
+        self::assertSame('anzu', $dto->id);
+        self::assertSame(1, $dto->getLegacyId());
+        self::assertSame('{"id":"anzu"}', $this->serializer->serialize($dto));
     }
 
     public static function data(): iterable
@@ -118,6 +108,15 @@ final class PropertyAccessTest extends AbstractTestCase
             '{"name":"anzu","count":3}',
             PlainNonPublicDto::create('anzu', 3),
             '{"name":"anzu","count":3}',
+        ];
+
+        $inheritedConstructorChild = new InheritedConstructorChildDto();
+        $inheritedConstructorChild->name = 'anzu';
+
+        yield 'inherited constructor promotes the private property of the parent, not the child property' => [
+            '{"name":"anzu"}',
+            $inheritedConstructorChild,
+            '{"name":"anzu"}',
         ];
 
         yield 'private of a parent class, a child property of the same name wins' => [
@@ -140,6 +139,7 @@ final class PropertyAccessTest extends AbstractTestCase
 
         $setterWithoutGetter = new SetterWithoutGetterDto();
         $setterWithoutGetter->setName('anzu');
+
         yield 'setter without a getter' => [
             '{"name":" anzu "}',
             $setterWithoutGetter,
@@ -154,6 +154,7 @@ final class PropertyAccessTest extends AbstractTestCase
 
         $public = new PublicPropertyDto();
         $public->name = 'anzu';
+
         yield 'public' => [
             '{"name":"anzu"}',
             $public,
@@ -162,6 +163,7 @@ final class PropertyAccessTest extends AbstractTestCase
 
         $setHook = new SetHookDto();
         $setHook->name = 'anzu';
+
         yield 'public with a set hook' => [
             '{"name":" anzu "}',
             $setHook,
@@ -186,6 +188,24 @@ final class PropertyAccessTest extends AbstractTestCase
             '{"id":"anzu"}',
         ];
 
+        yield 'readonly, set by the constructor, invalid input ignored' => [
+            '{"createdAt":"invalid"}',
+            new ReadonlySetByConstructorDateDto(),
+            '{"createdAt":"2026-01-01T00:00:00Z"}',
+        ];
+
+        yield 'readonly, constructor parameter of the same name takes the value' => [
+            '{"limit":50}',
+            new ReadonlyConstructorParameterDto(50),
+            '{"limit":50}',
+        ];
+
+        yield 'readonly, constructor parameter of the same name, missing keeps the default' => [
+            '{}',
+            new ReadonlyConstructorParameterDto(),
+            '{"limit":10}',
+        ];
+
         yield 'readonly, not set by a constructor, filled from the input' => [
             '{"id":"anzu"}',
             ReadonlyNoConstructorDto::create('anzu'),
@@ -206,6 +226,7 @@ final class PropertyAccessTest extends AbstractTestCase
 
         $inheritedNoArgument = new InheritedPromotedNoArgumentDto();
         $inheritedNoArgument->count = 3;
+
         yield 'inherited promoted, overridden without a parameter' => [
             '{"count":3}',
             $inheritedNoArgument,
@@ -213,7 +234,7 @@ final class PropertyAccessTest extends AbstractTestCase
         ];
 
         yield 'promoted with a setter, value' => [
-            '{"count":3}',
+            '{"count":-3}',
             new PromotedSetterDto(3),
             '{"count":3}',
         ];
@@ -238,6 +259,7 @@ final class PropertyAccessTest extends AbstractTestCase
 
         $virtualGetOnly = new VirtualGetOnlyDto();
         $virtualGetOnly->name = 'anzu';
+
         yield 'virtual, get only' => [
             '{"name":"anzu","label":"ignored"}',
             $virtualGetOnly,

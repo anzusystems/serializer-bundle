@@ -87,6 +87,10 @@ final class JsonDeserializer
             if (null === $metadata->setter || false === array_key_exists($name, $data)) {
                 continue;
             }
+            if ($metadata->constructorReadonly && $this->propertyAccessor->isInitialized($object, $metadata)) {
+                // PHP refuses to write a readonly property twice, so the constructor's value wins and the input is ignored
+                continue;
+            }
             $dataValue = $data[$name];
             if (null === $dataValue && false === $metadata->isNullable && $objectMetadata->isOptionalConstructorArgument($name)) {
                 // the constructor took the default value instead, and a handler would turn null into 0 or ''
@@ -213,14 +217,6 @@ final class JsonDeserializer
             );
         }
 
-        try {
-            return new $className(...$arguments);
-        } catch (Throwable $exception) {
-            throw new SerializerException(
-                sprintf('Unable to deserialize "%s". The constructor failed: %s', $className, $exception->getMessage()),
-                0,
-                $exception,
-            );
-        }
+        return new $className(...$arguments);
     }
 }

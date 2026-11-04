@@ -21,6 +21,6 @@ final class PromotedSetterDto
 
     public function setCount(int $count): void
     {
-        $this->count = $count;
+        $this->count = abs($count);
     }
 }
