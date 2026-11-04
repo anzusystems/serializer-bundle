@@ -9,6 +9,7 @@ use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchListDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchOtherDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\BatchSetOnlyDto;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\RecordingBatchHandler;
 use Doctrine\Common\Collections\ArrayCollection;
 use Exception;
@@ -67,6 +68,11 @@ final class BatchHandlerTest extends AbstractTestCase
             [new BatchDto('same', 'One'), new BatchDto('same', 'Two')],
             [['same', 'same']],
             '[{"code":"same","label":"One"},{"code":"same","label":"Two"}]',
+        ];
+        yield 'set only property is not read for the batch' => [
+            [new BatchSetOnlyDto('first')],
+            [],
+            '[{"label":"first"}]',
         ];
     }
 

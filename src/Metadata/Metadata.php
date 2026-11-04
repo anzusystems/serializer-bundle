@@ -25,10 +25,12 @@ final class Metadata
         public ?string $persistedName = null,
         public ?array $discriminatorMap = null,
         public ?array $orderBy = null,
-        public bool $getterSetterStrategy = true,
+        public bool $getterIsMethod = true,
+        public bool $setterIsMethod = true,
         public ?string $declaringClass = null,
         public bool $readable = true,
         public bool $promoted = false,
+        public bool $constructorReadonly = false,
     ) {
     }
 }

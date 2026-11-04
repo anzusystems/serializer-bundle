@@ -88,6 +88,10 @@ final class JsonDeserializer
                 continue;
             }
             $dataValue = $data[$name];
+            if (null === $dataValue && false === $metadata->isNullable && $objectMetadata->isOptionalConstructorArgument($name)) {
+                // the constructor took the default value instead, and a handler would turn null into 0 or ''
+                continue;
+            }
             $value = $this->handlerResolver
                 ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
                 ->deserialize($dataValue, $metadata)
@@ -178,12 +182,7 @@ final class JsonDeserializer
     {
         $propMetadata = $objectMetadata->getAll();
         $constructorMetadata = $objectMetadata->getConstructorMetadata();
-        if (empty($constructorMetadata)) {
-            // initialize object without parameters
-            return new $className();
-        }
 
-        // initialize object with parameters
         $arguments = [];
         foreach ($constructorMetadata as $name => $metadata) {
             $isProvided = isset($propMetadata[$name])
@@ -214,6 +213,14 @@ final class JsonDeserializer
             );
         }
 
-        return new $className(...$arguments);
+        try {
+            return new $className(...$arguments);
+        } catch (Throwable $exception) {
+            throw new SerializerException(
+                sprintf('Unable to deserialize "%s". The constructor failed: %s', $className, $exception->getMessage()),
+                0,
+                $exception,
+            );
+        }
     }
 }

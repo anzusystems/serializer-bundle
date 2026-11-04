@@ -120,11 +120,14 @@ To be able to (de)serialize objects, the property (or method) of that object mus
 
 A `#[Serialize]` property is read and written in one of two ways:
 
-- A `private` or `protected` property without hooks that has a getter (`getName()`, or `isEnabled()` for a `bool`) is
-  read through the getter and written through the setter (`setName()`). Without a setter it is not written.
-- Any other property is read and written directly, in the scope of the class that declares it. This covers `public`,
-  `private` and `protected` properties, asymmetric visibility (`public private(set)`, `public protected(set)`) and
-  property hooks, which run as usual.
+- A `private` or `protected` property without hooks uses the public accessors of the serialized class, its own or
+  inherited. A getter (`getName()`, or `isEnabled()` for a `bool`) reads it and a setter (`setName()`) writes it. With a
+  getter and no setter it is not written.
+- Anything else is read and written directly, in the scope of the class that declares it. This covers `public`, `private`
+  and `protected` properties, also the `private` ones of a parent class, asymmetric visibility (`public private(set)`,
+  `public protected(set)`) and property hooks, which run as usual.
+
+PHP attributes are not inherited, so a property that a child class declares again needs its own `#[Serialize]`.
 
 ```php
     // Written from the input, read by everyone, changed by nobody else.
@@ -152,9 +155,14 @@ A `#[Serialize]` property is read and written in one of two ways:
     }
 ```
 
-Promoted properties are filled by the constructor and are not written again after it, so they can be `readonly`. A
-promoted parameter that is missing from the data, or `null` for a non-nullable type, gets its default value; a required
-parameter without a default throws a `SerializerException` that names it.
+Properties promoted by the constructor of the deserialized class are filled by it, so they can be `readonly`. A
+`private` or `protected` promoted property that has a setter is written by the setter once more after the
+constructor. A property promoted by a parent constructor that the child class overrides without promoting it is written
+after the constructor. A `readonly` property that is not promoted is filled from the input, unless the constructor has
+already set it: then the input is ignored. A promoted parameter that is missing from the data, or `null` for a
+non-nullable type, gets its default value; a required parameter without a default throws a `SerializerException` that
+names it. When the constructor fails, the `SerializerException` holds the original exception as `getPrevious()`.
+Serializing a typed property that is not initialized throws a `SerializerException` that names the property.
 
 ```php
     public function __construct(

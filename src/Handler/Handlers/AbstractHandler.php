@@ -39,7 +39,7 @@ abstract class AbstractHandler implements HandlerInterface
         if (TypeIdentifier::FLOAT->value === $metadata->type) {
             $description['format'] = 'float';
         }
-        if (null === $metadata->setter && false === $metadata->promoted) {
+        if ($metadata->constructorReadonly || (null === $metadata->setter && false === $metadata->promoted)) {
             $description['readOnly'] = true;
         }
         if (false === $metadata->readable) {

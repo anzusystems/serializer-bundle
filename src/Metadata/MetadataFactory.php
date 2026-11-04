@@ -41,12 +41,12 @@ final readonly class MetadataFactory
         $propertyMetadata = $this->buildPropertyMetadata($reflection);
 
         return $this->buildClassMetadata(
-            array_merge(
+            metadata: array_merge(
                 $propertyMetadata,
                 $this->buildMethodMetadata($reflection)
             ),
-            $propertyMetadata,
-            $reflection,
+            propertyMetadata: $propertyMetadata,
+            reflection: $reflection,
         );
     }
 
@@ -82,11 +82,15 @@ final readonly class MetadataFactory
 
             $dataName = $attribute->serializedName ?? $parameter->getName();
             $propertyMeta = $propertyMetadata[$dataName] ?? null;
-            if ($parameter->isPromoted() && $propertyMeta) {
-                $constructorMetadata[$dataName] = $propertyMeta;
+            if ($parameter->isPromoted() && $parameter->getName() === $propertyMeta?->property) {
                 if ($parameter->isDefaultValueAvailable()) {
+                    if (isset($constructorMetadata[$dataName])) {
+                        // a required parameter of the same data name keeps it: both cannot take one value
+                        continue;
+                    }
                     $optionalConstructorArguments[] = $dataName;
                 }
+                $constructorMetadata[$dataName] = $propertyMeta;
 
                 continue;
             }
@@ -111,7 +115,11 @@ final readonly class MetadataFactory
             );
         }
 
-        return new ClassMetadata($metadata, $constructorMetadata, $optionalConstructorArguments);
+        return new ClassMetadata(
+            metadata: $metadata,
+            constructorMetadata: $constructorMetadata,
+            optionalConstructorArguments: $optionalConstructorArguments,
+        );
     }
 
     /**
@@ -120,7 +128,7 @@ final readonly class MetadataFactory
     private function buildPropertyMetadata(ReflectionClass $reflection): array
     {
         $metadata = [];
-        foreach ($reflection->getProperties() as $property) {
+        foreach ($this->collectProperties($reflection) as $property) {
             $attributes = $property->getAttributes(Serialize::class);
             if (false === array_key_exists(0, $attributes)) {
                 continue;
@@ -128,10 +136,31 @@ final readonly class MetadataFactory
             /** @var Serialize $attribute */
             $attribute = $attributes[0]->newInstance();
             $dataName = $attribute->serializedName ?? $property->getName();
-            $metadata[$dataName] = $this->getPropertyMetadata($property, $attribute);
+            $metadata[$dataName] = $this->getPropertyMetadata(
+                property: $property,
+                attribute: $attribute,
+                reflection: $reflection,
+            );
         }
 
         return $metadata;
+    }
+
+    /**
+     * ReflectionClass::getProperties() leaves out the private properties of parent classes.
+     *
+     * @return array<string, ReflectionProperty>
+     */
+    private function collectProperties(ReflectionClass $reflection): array
+    {
+        $properties = [];
+        for ($class = $reflection; false !== $class; $class = $class->getParentClass()) {
+            foreach ($class->getProperties() as $property) {
+                $properties[$property->getName()] ??= $property;
+            }
+        }
+
+        return $properties;
     }
 
     /**
@@ -197,7 +226,7 @@ final readonly class MetadataFactory
     /**
      * @throws SerializerException
      */
-    private function getPropertyMetadata(ReflectionProperty $property, Serialize $attribute): Metadata
+    private function getPropertyMetadata(ReflectionProperty $property, Serialize $attribute, ReflectionClass $reflection): Metadata
     {
         $getterPrefix = 'get';
         $propertyType = $property->getType();
@@ -220,35 +249,43 @@ final readonly class MetadataFactory
                 }
             }
         }
-        $getter = $this->findGetter($property, $getterPrefix);
-        $getterSetterStrategy = is_string($getter) && false === $property->isPublic() && false === $property->hasHooks();
+        $usesAccessors = false === $property->isPublic() && false === $property->hasHooks();
+        $getter = $usesAccessors ? $this->findGetter($reflection, $property, $getterPrefix) : null;
+        $setter = $usesAccessors ? $this->findPublicMethod($reflection, 'set' . ucfirst($property->getName())) : null;
+        $filledByConstructor = $this->isFilledByConstructor($property, $reflection);
 
         return new Metadata(
             $type,
             (bool) $propertyType?->allowsNull(),
-            $getterSetterStrategy ? (string) $getter : $property->getName(),
+            $getter ?? $property->getName(),
             $property->getName(),
-            $this->resolveSetter($property, $getterSetterStrategy),
+            $this->resolveSetter(
+                property: $property,
+                getter: $getter,
+                setter: $setter,
+                filledByConstructor: $filledByConstructor,
+            ),
             $attribute->handler,
             $this->resolveCustomType($attribute),
             $attribute->strategy,
             $attribute->persistedName,
             $attribute->discriminatorMap,
             orderBy: self::resolveOrderBy($attribute),
-            getterSetterStrategy: $getterSetterStrategy,
+            getterIsMethod: null !== $getter,
+            setterIsMethod: null !== $setter,
             declaringClass: $property->getDeclaringClass()
                 ->getName(),
-            readable: $getterSetterStrategy || $this->isPropertyReadable($property),
-            promoted: $property->isPromoted(),
+            readable: null !== $getter || $this->isPropertyReadable($property),
+            promoted: $filledByConstructor,
+            constructorReadonly: $property->isReadOnly() && false === $filledByConstructor && null !== $reflection->getConstructor(),
         );
     }
 
-    private function findGetter(ReflectionProperty $property, string $getterPrefix): ?string
+    private function findGetter(ReflectionClass $reflection, ReflectionProperty $property, string $getterPrefix): ?string
     {
-        $declaringClass = $property->getDeclaringClass();
         foreach ([$getterPrefix, 'get'] as $prefix) {
-            $getter = $prefix . ucfirst($property->getName());
-            if ($declaringClass->hasMethod($getter)) {
+            $getter = $this->findPublicMethod($reflection, $prefix . ucfirst($property->getName()));
+            if (null !== $getter) {
                 return $getter;
             }
         }
@@ -256,16 +293,22 @@ final readonly class MetadataFactory
         return null;
     }
 
-    private function resolveSetter(ReflectionProperty $property, bool $getterSetterStrategy): ?string
+    private function findPublicMethod(ReflectionClass $reflection, string $name): ?string
     {
-        if ($getterSetterStrategy) {
-            $setter = 'set' . ucfirst($property->getName());
+        return $reflection->hasMethod($name) && $reflection->getMethod($name)
+            ->isPublic() ? $name : null;
+    }
 
-            return $property->getDeclaringClass()
-                ->hasMethod($setter) ? $setter : null;
+    private function resolveSetter(ReflectionProperty $property, ?string $getter, ?string $setter, bool $filledByConstructor): ?string
+    {
+        if (null !== $setter) {
+            return $setter;
+        }
+        if (null !== $getter) {
+            return null;
         }
 
-        return $this->isPropertyWritable($property) ? $property->getName() : null;
+        return $this->isPropertyWritable($property, $filledByConstructor) ? $property->getName() : null;
     }
 
     private function isPropertyReadable(ReflectionProperty $property): bool
@@ -274,11 +317,23 @@ final readonly class MetadataFactory
     }
 
     /**
-     * A promoted property is filled by the constructor, and a readonly one cannot be written again.
+     * ReflectionProperty::isPromoted() names the constructor that declares the property, which a child class may have
+     * overridden, so only the constructor of the deserialized class counts.
      */
-    private function isPropertyWritable(ReflectionProperty $property): bool
+    private function isFilledByConstructor(ReflectionProperty $property, ReflectionClass $reflection): bool
     {
-        if ($property->isPromoted()) {
+        foreach ($reflection->getConstructor()?->getParameters() ?? [] as $parameter) {
+            if ($property->getName() === $parameter->getName()) {
+                return $parameter->isPromoted();
+            }
+        }
+
+        return false;
+    }
+
+    private function isPropertyWritable(ReflectionProperty $property, bool $filledByConstructor): bool
+    {
+        if ($filledByConstructor) {
             return false;
         }
 
@@ -329,7 +384,7 @@ final readonly class MetadataFactory
      */
     private function findRelatedClassPropertyAttribute(ReflectionClass $reflection, string $name): ?Serialize
     {
-        foreach ($reflection->getProperties() as $property) {
+        foreach ($this->collectProperties($reflection) as $property) {
             if ($property->getName() !== $name) {
                 continue;
             }

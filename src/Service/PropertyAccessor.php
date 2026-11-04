@@ -7,12 +7,10 @@ namespace AnzuSystems\SerializerBundle\Service;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use Closure;
+use Error;
+use ReflectionException;
+use ReflectionProperty;
 
-/**
- * The accessors run in the scope of the declaring class, so private and protected properties, private(set) and
- * protected(set) work and property hooks still run. They hold closures, so they stay in memory and never reach the
- * metadata cache.
- */
 final class PropertyAccessor
 {
     /**
@@ -30,7 +28,46 @@ final class PropertyAccessor
      */
     public function getValue(object $object, Metadata $metadata): mixed
     {
-        if ($metadata->getterSetterStrategy) {
+        try {
+            return $this->read($object, $metadata);
+        } catch (Error $error) {
+            if ($this->isUninitialized($object, $metadata)) {
+                throw new SerializerException(
+                    sprintf('Unable to serialize "%s::$%s". The property is not initialized.', $metadata->declaringClass, $metadata->property),
+                    0,
+                    $error,
+                );
+            }
+
+            throw $error;
+        }
+    }
+
+    /**
+     * @throws ReflectionException
+     * @throws SerializerException
+     */
+    public function setValue(object $object, Metadata $metadata, mixed $value): void
+    {
+        if ($metadata->setterIsMethod) {
+            $object->{(string) $metadata->setter}($value);
+
+            return;
+        }
+
+        [$declaringClass, $property] = $this->resolveProperty($metadata);
+        $writer = $this->writers[$declaringClass . '::' . $property] ??= $this->createWriter($declaringClass, $property);
+
+        $writer($object, $value);
+    }
+
+    /**
+     * @throws Error when the property is not initialized
+     * @throws SerializerException
+     */
+    private function read(object $object, Metadata $metadata): mixed
+    {
+        if ($metadata->getterIsMethod) {
             return $object->{$metadata->getter}();
         }
 
@@ -43,26 +80,37 @@ final class PropertyAccessor
         return $reader($object);
     }
 
-    /**
-     * @throws SerializerException
-     */
-    public function setValue(object $object, Metadata $metadata, mixed $value): void
+    private function isUninitialized(object $object, Metadata $metadata): bool
     {
-        if ($metadata->getterSetterStrategy) {
-            $object->{(string) $metadata->setter}($value);
-
-            return;
+        if (null === $metadata->declaringClass || null === $metadata->property) {
+            return false;
         }
 
-        [$declaringClass, $property] = $this->resolveProperty($metadata);
-        $writer = $this->writers[$declaringClass . '::' . $property] ??= $this->bindToClass(
-            static function (object $object, mixed $value) use ($property): void {
+        return false === (new ReflectionProperty($metadata->declaringClass, $metadata->property))->isInitialized($object);
+    }
+
+    /**
+     * PHP refuses to write a readonly property twice, so a value the constructor already set wins over the input.
+     *
+     * @param class-string $declaringClass
+     *
+     * @throws ReflectionException
+     * @throws SerializerException
+     */
+    private function createWriter(string $declaringClass, string $property): Closure
+    {
+        $reflection = new ReflectionProperty($declaringClass, $property);
+        $isReadOnly = $reflection->isReadOnly();
+
+        return $this->bindToClass(
+            static function (object $object, mixed $value) use ($property, $reflection, $isReadOnly): void {
+                if ($isReadOnly && $reflection->isInitialized($object)) {
+                    return;
+                }
                 $object->{$property} = $value;
             },
             $declaringClass,
         );
-
-        $writer($object, $value);
     }
 
     /**
@@ -72,7 +120,7 @@ final class PropertyAccessor
      */
     private function bindToClass(Closure $accessor, string $declaringClass): Closure
     {
-        $boundAccessor = Closure::bind($accessor, null, $declaringClass);
+        $boundAccessor = Closure::bind($accessor, newThis: null, newScope: $declaringClass);
         if (null === $boundAccessor) {
             throw new SerializerException(sprintf('Cannot bind a property accessor to the class "%s".', $declaringClass));
         }

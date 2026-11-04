@@ -66,7 +66,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
 
             // Describe symfony constraints and property docBlock description.
             if (is_string($metadata->property) && $typeInfo instanceof ObjectType && false === empty($typeInfo->getClassName())) {
-                $propertyReflection = new ReflectionProperty($typeInfo->getClassName(), $metadata->property);
+                $propertyReflection = new ReflectionProperty($metadata->declaringClass ?? $typeInfo->getClassName(), $metadata->property);
                 $this->getSymfonyConstraintAnnotationReader()
                     ->updateProperty($propertyReflection, $property);
                 $this->addDocBlockDescription($propertyReflection, $property);
@@ -74,9 +74,9 @@ final class SerializerModelDescriber implements ModelDescriberInterface
 
             // Method docBlock description.
             if (is_string($metadata->setter) && $typeInfo instanceof ObjectType && false === empty($typeInfo->getClassName())) {
-                $methodReflection = $metadata->getterSetterStrategy
+                $methodReflection = $metadata->getterIsMethod
                     ? new ReflectionMethod($typeInfo->getClassName(), $metadata->getter)
-                    : new ReflectionProperty($typeInfo->getClassName(), $metadata->getter)
+                    : new ReflectionProperty($metadata->declaringClass ?? $typeInfo->getClassName(), $metadata->getter)
                 ;
                 $this->addDocBlockDescription($methodReflection, $property);
             }
