@@ -9,6 +9,7 @@ use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use AnzuSystems\SerializerBundle\OpenApi\SerializerModelDescriber;
 use AnzuSystems\SerializerBundle\Tests\Dto\ChildAccessorsDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\InheritedPrivateDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\PrivateConstructorPromotedDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyConstructorParameterDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyNoConstructorDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyNotPromotedDto;
@@ -57,6 +58,7 @@ final class SerializerModelDescriberTest extends AbstractTestCase
         yield 'readonly, promoted' => [ReadonlyPromotedDto::class, 'name', false, false];
         yield 'readonly, class with a constructor' => [ReadonlyNotPromotedDto::class, 'id', true, false];
         yield 'readonly, class without a constructor' => [ReadonlyNoConstructorDto::class, 'id', false, false];
+        yield 'promoted by a private constructor, no setter' => [PrivateConstructorPromotedDto::class, 'name', true, false];
         yield 'readonly, constructor parameter of the same name' => [ReadonlyConstructorParameterDto::class, 'limit', false, false];
         yield 'private of a parent class' => [InheritedPrivateDto::class, 'direct', false, false];
         yield 'private of a parent class, with a setter' => [InheritedPrivateDto::class, 'accessed', false, false];

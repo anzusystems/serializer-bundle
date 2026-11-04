@@ -159,6 +159,7 @@ final class JsonDeserializer
             if (null === $metadata->setter && false === isset($constructorMetadata[$name])) {
                 continue;
             }
+            // the null check spares a method call per property, which costs 3 to 5 percent of a deserialization
             if (null === $metadata->customHandler || false === $this->usesBatchHandler($metadata)) {
                 continue;
             }

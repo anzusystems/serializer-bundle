@@ -231,6 +231,12 @@ final readonly class MetadataFactory
      */
     private function getPropertyMetadata(ReflectionProperty $property, Serialize $attribute, ReflectionClass $reflection): Metadata
     {
+        if ($property->isStatic()) {
+            throw new SerializerException(
+                sprintf('Static property "%s::$%s" cannot be serialized.', $property->getDeclaringClass()->getName(), $property->getName())
+            );
+        }
+
         $getterPrefix = 'get';
         $propertyType = $property->getType();
         $type = '';
@@ -330,7 +336,7 @@ final readonly class MetadataFactory
     private function isFilledByConstructor(ReflectionProperty $property, ReflectionClass $reflection): bool
     {
         $constructor = $reflection->getConstructor();
-        if (null === $constructor) {
+        if (null === $constructor || false === $constructor->isPublic()) {
             return false;
         }
 

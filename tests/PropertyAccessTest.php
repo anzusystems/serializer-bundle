@@ -33,6 +33,7 @@ use AnzuSystems\SerializerBundle\Tests\Dto\RedeclaredPromotedDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\SerializedNameCollisionDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\SetHookDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\SetterWithoutGetterDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\StaticPropertyDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ThrowingConstructorDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\UninitializedDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\UninitializedWithGetterDto;
@@ -65,6 +66,14 @@ final class PropertyAccessTest extends AbstractTestCase
         $classMetadata = self::getContainer()->get(MetadataRegistry::class)->get(PrivateHookedDto::class);
 
         self::assertEquals($classMetadata, unserialize(serialize($classMetadata)));
+    }
+
+    public function testStaticPropertyIsRefused(): void
+    {
+        $this->expectException(SerializerException::class);
+        $this->expectExceptionMessage(StaticPropertyDto::class . '::$counter');
+
+        $this->serializer->serialize(new StaticPropertyDto());
     }
 
     public function testConstructorExceptionPassesThroughUnchanged(): void

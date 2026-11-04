@@ -41,15 +41,15 @@ inheriting from that class.
 - Promoted properties are filled by the constructor and are not written again after it, so a `readonly` promoted
   property can be deserialized. A non-public promoted property with a `setX()` method is the exception: its setter
   still runs after the constructor, as in 6.x.
-- A `readonly` property that is not promoted gets its value through a constructor parameter of the same name and type.
-  Without such a parameter it is filled from the input, unless the constructor has already set it or it is `private` or
+- A `readonly` property that is not promoted gets its value through a constructor parameter of the same name and type,
+  and the constructor must assign it. Without such a parameter it is filled from the input, unless the constructor has already set it or it is `private` or
   `protected` with a getter and no setter: then the input is ignored.
   6.x threw a `SerializerException` for `readonly`, and skipped `private(set) readonly`. In the API documentation it is
   `readOnly` when the class has a constructor without that parameter.
 - A promoted parameter that is missing from the data, or `null` for a non-nullable type, gets its default value. A
   required parameter without a default still throws a `SerializerException` that names it when it is missing or `null`
   for a non-nullable type. `null` for a nullable parameter now reaches the constructor, where 6.x threw this exception.
-  Constructor arguments are passed by name.
+  Constructor arguments are passed by name, so a variadic `...$rest` gets `['rest' => 'x']` where 6.x gave `['x']`.
 - A `private` or `protected` property without a getter method is read directly instead of throwing
   `Getter method … not found`, and written by its `setX()` method when it has one, otherwise directly. A property with
   a getter keeps using its getter and setter.
@@ -57,7 +57,8 @@ inheriting from that class.
   property of its parent. A `getX()` or `setX()` that is not public is not called.
 - A virtual property with only a `get` hook is ignored on input and described as `readOnly` in the API documentation.
   A virtual property with only a `set` hook is left out of the output and described as `writeOnly`.
-- A promoted property is no longer described as `readOnly` in the API documentation.
+- A property promoted by a public constructor is no longer described as `readOnly` in the API documentation.
+- A static `#[Serialize]` property throws a `SerializerException` when the metadata is built.
 - `JsonSerializer` and `JsonDeserializer` take an optional third constructor argument, `PropertyAccessor`
   (default `new PropertyAccessor()`). Code that creates them by hand needs no change.
 - `Metadata::$getterSetterStrategy` is replaced by `$getterIsMethod` and `$setterIsMethod`. `$readInClassScope` and

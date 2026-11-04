@@ -159,7 +159,7 @@ Properties promoted by the constructor of the deserialized class are filled by i
 `private` or `protected` promoted property that has a setter is written by the setter once more after the
 constructor. A property promoted by a parent constructor that the child class overrides without promoting it is written
 after the constructor. A `readonly` property that is not promoted gets its value through a constructor parameter of the
-same name and type. Without such a parameter it is filled from the input, unless the constructor has already set it or
+same name and type, and the constructor must assign it. Without such a parameter it is filled from the input, unless the constructor has already set it or
 it is `private` or `protected` with a getter and no setter: then the input is ignored. A promoted parameter that is missing from the data, or `null` for a non-nullable type, gets its default value;
 a required parameter without a default throws a `SerializerException` that names it. An exception from the constructor
 and the `Error` for a typed property that is not initialized pass through unchanged.

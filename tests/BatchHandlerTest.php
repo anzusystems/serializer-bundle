@@ -127,25 +127,27 @@ final class BatchHandlerTest extends AbstractTestCase
     }
 
     /**
+     * @param class-string<ReadonlySetBatchDto|ReadonlyUnsetBatchDto> $className
+     * @param list<list<mixed>> $expectedBatches
+     *
      * @throws SerializerException
      */
-    public function testReadonlyInputTheConstructorOverrulesIsNotPrepared(): void
-    {
-        $dto = $this->serializer->deserialize('{"code":"input"}', ReadonlySetBatchDto::class);
+    #[DataProvider('readonlyInputData')]
+    public function testReadonlyInputIsPreparedOnlyWhenTheConstructorLeavesItUnset(
+        string $className,
+        string $expectedCode,
+        array $expectedBatches,
+    ): void {
+        $dto = $this->serializer->deserialize('{"code":"input"}', $className);
 
-        self::assertSame('constructor', $dto->code);
-        self::assertSame([], self::getContainer()->get(RecordingDeserializeBatchHandler::class)->getBatches());
+        self::assertSame($expectedCode, $dto->code);
+        self::assertSame($expectedBatches, self::getContainer()->get(RecordingDeserializeBatchHandler::class)->getBatches());
     }
 
-    /**
-     * @throws SerializerException
-     */
-    public function testReadonlyInputIsPreparedWhenTheConstructorLeavesItUnset(): void
+    public static function readonlyInputData(): iterable
     {
-        $dto = $this->serializer->deserialize('{"code":"input"}', ReadonlyUnsetBatchDto::class);
-
-        self::assertSame('input', $dto->code);
-        self::assertSame([['input']], self::getContainer()->get(RecordingDeserializeBatchHandler::class)->getBatches());
+        yield 'the constructor overrules the input' => [ReadonlySetBatchDto::class, 'constructor', []];
+        yield 'the constructor leaves it unset' => [ReadonlyUnsetBatchDto::class, 'input', [['input']]];
     }
 
     /**
