@@ -10,6 +10,7 @@ use AnzuSystems\SerializerBundle\Handler\BatchItem;
 use AnzuSystems\SerializerBundle\Handler\HandlerResolver;
 use AnzuSystems\SerializerBundle\Handler\Handlers\BatchDeserializeHandlerInterface;
 use AnzuSystems\SerializerBundle\Metadata\ClassMetadata;
+use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use AnzuSystems\SerializerBundle\Metadata\MetadataRegistry;
 use Doctrine\Common\Collections\Collection;
 use JsonException;
@@ -87,9 +88,16 @@ final class JsonDeserializer
             if (null === $metadata->setter || false === array_key_exists($name, $data)) {
                 continue;
             }
-            if ($metadata->constructorReadonly && $this->propertyAccessor->isInitialized($object, $metadata)) {
-                // PHP refuses to write a readonly property twice, so the constructor's value wins and the input is ignored
-                continue;
+            if ($metadata->constructorReadonly) {
+                if ($this->propertyAccessor->isInitialized($object, $metadata)) {
+                    // PHP refuses to write a readonly property twice, so the constructor's value wins and the input is ignored
+                    continue;
+                }
+                if ($this->usesBatchHandler($metadata)) {
+                    $this->drainBatches([
+                        (string) $metadata->customHandler => [new BatchItem($data[$name], $metadata)],
+                    ]);
+                }
             }
             $dataValue = $data[$name];
             if (null === $dataValue && false === $metadata->isNullable && $objectMetadata->isOptionalConstructorArgument($name)) {
@@ -151,15 +159,24 @@ final class JsonDeserializer
             if (null === $metadata->setter && false === isset($constructorMetadata[$name])) {
                 continue;
             }
-            $handlerClass = $metadata->customHandler;
-            if (null === $handlerClass || false === is_a($handlerClass, BatchDeserializeHandlerInterface::class, true)) {
+            if (null === $metadata->customHandler || false === $this->usesBatchHandler($metadata)) {
+                continue;
+            }
+            if ($metadata->constructorReadonly && false === isset($constructorMetadata[$name])) {
+                // only arrayToObject() can tell, after the constructor, whether this property takes the input
                 continue;
             }
 
-            $batches[$handlerClass][] = new BatchItem($data[$name], $metadata);
+            $batches[(string) $metadata->customHandler][] = new BatchItem($data[$name], $metadata);
         }
 
         return $batches;
+    }
+
+    private function usesBatchHandler(Metadata $metadata): bool
+    {
+        return null !== $metadata->customHandler
+            && is_a($metadata->customHandler, BatchDeserializeHandlerInterface::class, true);
     }
 
     /**

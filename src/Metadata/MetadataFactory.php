@@ -82,7 +82,7 @@ final readonly class MetadataFactory
 
             $dataName = $attribute->serializedName ?? $parameter->getName();
             $propertyMeta = $propertyMetadata[$dataName] ?? null;
-            if (true === $propertyMeta?->promoted && $parameter->getName() === $propertyMeta->property) {
+            if (true === $propertyMeta?->filledByConstructor && $parameter->getName() === $propertyMeta->property) {
                 if ($parameter->isDefaultValueAvailable()) {
                     if (isset($constructorMetadata[$dataName])) {
                         // a required parameter of the same data name keeps it: both cannot take one value
@@ -279,7 +279,7 @@ final readonly class MetadataFactory
             declaringClass: $property->getDeclaringClass()
                 ->getName(),
             readable: null !== $getter || $this->isPropertyReadable($property),
-            promoted: $filledByConstructor,
+            filledByConstructor: $filledByConstructor,
             constructorReadonly: $property->isReadOnly() && false === $filledByConstructor && null !== $reflection->getConstructor(),
             readInClassScope: false === $property->isPublic(),
             writeInClassScope: false === $property->isPublic() || $property->isPrivateSet() || $property->isProtectedSet(),
@@ -323,19 +323,31 @@ final readonly class MetadataFactory
 
     /**
      * ReflectionProperty::isPromoted() names the constructor that declares the property, which a child class may have
-     * overridden, so only the constructor of the deserialized class counts, and a parent's promoted parameter fills
-     * the parent's property, not a child's of the same name. A readonly property cannot be written after the constructor,
-     * so a parameter of its name takes the value.
+     * overridden, so only the constructor of the deserialized class counts. A private property promoted by a parent is
+     * not the child's property of the same name. A readonly property cannot be written after the constructor, so a
+     * parameter of its name and type takes the value.
      */
     private function isFilledByConstructor(ReflectionProperty $property, ReflectionClass $reflection): bool
     {
-        foreach ($reflection->getConstructor()?->getParameters() ?? [] as $parameter) {
-            if ($property->getName() === $parameter->getName()) {
-                return $parameter->isPromoted()
-                    ? $parameter->getDeclaringClass()?->getName() === $property->getDeclaringClass()
-                        ->getName()
-                    : $property->isReadOnly();
+        $constructor = $reflection->getConstructor();
+        if (null === $constructor) {
+            return false;
+        }
+
+        foreach ($constructor->getParameters() as $parameter) {
+            if ($property->getName() !== $parameter->getName()) {
+                continue;
             }
+            if (false === $parameter->isPromoted()) {
+                return $property->isReadOnly() && (string) $parameter->getType() === (string) $property->getType();
+            }
+
+            $promotingClass = $constructor->getDeclaringClass();
+
+            return $promotingClass->getName() === $property->getDeclaringClass()
+                ->getName()
+                || false === $promotingClass->getProperty($property->getName())
+                    ->isPrivate();
         }
 
         return false;

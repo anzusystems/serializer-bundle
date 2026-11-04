@@ -10,7 +10,10 @@ use AnzuSystems\SerializerBundle\Tests\Dto\BatchDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchListDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchOtherDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchSetOnlyDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlySetBatchDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyUnsetBatchDto;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\RecordingBatchHandler;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\RecordingDeserializeBatchHandler;
 use Doctrine\Common\Collections\ArrayCollection;
 use Exception;
 use Generator;
@@ -121,6 +124,28 @@ final class BatchHandlerTest extends AbstractTestCase
         $this->serializer->serialize(self::items(), SerializationContext::create()->setSerializeNulls(false));
 
         self::assertSame([false], $this->handler->getBatchedSerializeNulls());
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testReadonlyInputTheConstructorOverrulesIsNotPrepared(): void
+    {
+        $dto = $this->serializer->deserialize('{"code":"input"}', ReadonlySetBatchDto::class);
+
+        self::assertSame('constructor', $dto->code);
+        self::assertSame([], self::getContainer()->get(RecordingDeserializeBatchHandler::class)->getBatches());
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testReadonlyInputIsPreparedWhenTheConstructorLeavesItUnset(): void
+    {
+        $dto = $this->serializer->deserialize('{"code":"input"}', ReadonlyUnsetBatchDto::class);
+
+        self::assertSame('input', $dto->code);
+        self::assertSame([['input']], self::getContainer()->get(RecordingDeserializeBatchHandler::class)->getBatches());
     }
 
     /**

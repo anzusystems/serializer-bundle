@@ -22,10 +22,14 @@ use AnzuSystems\SerializerBundle\Tests\Dto\PromotedSetterDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\PublicPropertyDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyClassDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyConstructorParameterDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyGetterDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyLeftUnsetDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyNoConstructorDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyNotPromotedDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyParameterOtherTypeDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyPromotedDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlySetByConstructorDateDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\RedeclaredPromotedDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\SerializedNameCollisionDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\SetHookDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\SetterWithoutGetterDto;
@@ -121,7 +125,7 @@ final class PropertyAccessTest extends AbstractTestCase
 
         yield 'private of a parent class, a child property of the same name wins' => [
             '{"direct":"anzu","accessed":" anzu ","shadowed":"child value","hidden":"ignored"}',
-            InheritedPrivateDto::create('anzu', 'anzu', 'child value'),
+            InheritedPrivateDto::create(direct: 'anzu', accessed: 'anzu', shadowed: 'child value'),
             '{"shadowed":"child value","direct":"anzu","accessed":"anzu"}',
         ];
 
@@ -204,6 +208,30 @@ final class PropertyAccessTest extends AbstractTestCase
             '{}',
             new ReadonlyConstructorParameterDto(),
             '{"limit":10}',
+        ];
+
+        yield 'readonly, constructor parameter of another type keeps its own type' => [
+            '{"at":"2026-01-01T00:00:00Z"}',
+            new ReadonlyParameterOtherTypeDto('2026-01-01T00:00:00Z'),
+            '{"at":"2026-01-01T00:00:00Z"}',
+        ];
+
+        yield 'readonly, constructor leaves it unset, filled from the input' => [
+            '{"id":"anzu"}',
+            ReadonlyLeftUnsetDto::create('anzu'),
+            '{"id":"anzu"}',
+        ];
+
+        yield 'private readonly with a getter and no setter, input ignored' => [
+            '{"id":"ignored"}',
+            new ReadonlyGetterDto(),
+            '{"id":"constructor"}',
+        ];
+
+        yield 'protected promoted by the parent, declared again in the child' => [
+            '{"count":3}',
+            new RedeclaredPromotedDto(3),
+            '{"count":3}',
         ];
 
         yield 'readonly, not set by a constructor, filled from the input' => [

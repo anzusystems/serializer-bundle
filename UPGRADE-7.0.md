@@ -41,8 +41,9 @@ inheriting from that class.
 - Promoted properties are filled by the constructor and are not written again after it, so a `readonly` promoted
   property can be deserialized. A non-public promoted property with a `setX()` method is the exception: its setter
   still runs after the constructor, as in 6.x.
-- A `readonly` property that is not promoted gets its value through a constructor parameter of the same name. Without
-  such a parameter it is filled from the input, unless the constructor has already set it: then the input is ignored.
+- A `readonly` property that is not promoted gets its value through a constructor parameter of the same name and type.
+  Without such a parameter it is filled from the input, unless the constructor has already set it or it is `private` or
+  `protected` with a getter and no setter: then the input is ignored.
   6.x threw a `SerializerException` for `readonly`, and skipped `private(set) readonly`. In the API documentation it is
   `readOnly` when the class has a constructor without that parameter.
 - A promoted parameter that is missing from the data, or `null` for a non-nullable type, gets its default value. A
