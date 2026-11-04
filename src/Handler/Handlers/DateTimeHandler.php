@@ -43,6 +43,9 @@ final class DateTimeHandler extends AbstractHandler
         if (null === $value) {
             return null;
         }
+        if (false === is_string($value)) {
+            throw $this->invalidValue($value, $metadata);
+        }
         /** @var class-string<DateTime|DateTimeImmutable> $dateClass */
         $dateClass = $metadata->type;
         $format = $metadata->customType ?? $this->serializerDateFormat;

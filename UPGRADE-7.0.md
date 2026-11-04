@@ -36,6 +36,46 @@ input. 6.x dropped it without an error. Check every class that extends a class w
 keys. When the child must not expose the property, declare it again in the child without `#[Serialize]`, or stop
 inheriting from that class.
 
+## Check what your classes receive from outside
+
+Invalid input now throws a `DeserializationException` (HTTP 422 through `SerializerExceptionHandler` in `common-bundle`)
+that names the class and the property. 6.x turned it into another value without an error, or ended in a raw `Error`.
+
+| Target type | Input | 6.x | 7.0 |
+|---|---|---|---|
+| `int`, `float` | text such as `"abc"` or `"12abc"` | `0` or `12` | exception |
+| `int`, `float`, `bool` | array | `1` or `true` | exception |
+| `string` | array, or an object without `__toString()` | `"Array"` or `Error` | exception |
+| `bool` | text such as `"maybe"`, a number other than 0 and 1 | `false` | exception |
+| `array`, a class, a date, a UUID, an enum | `null` when the property is not nullable | `UnhandledMatchError` | exception |
+| a date, a UUID, an enum | a value of the wrong type | `TypeError` | exception |
+| a UUID | text that is not a UUID | `InvalidArgumentException` | exception |
+| a list with `ArrayStringHandler` of `int` or `float` | `"1,abc"` | `[1, 0]` | exception |
+
+These stay valid and give the same result as in 6.x:
+
+- `int` and `float` take a number, a numeric text, a `bool`, an empty text and `null` (`0`). A `float` into an `int` is
+  still cut, so `12.7` gives `12`.
+- `string` takes any scalar, `null` (`''`) and an object with `__toString()`.
+- `bool` takes `true`, `false`, `0`, `1`, `"true"`, `"false"`, `"on"`, `"off"`, `"yes"`, `"no"`, an empty text and `null`
+  (`false`).
+
+Check each class that reads data you do not produce yourself: other services, imports, AI output, old stored JSON. In
+6.x a wrong value passed without notice. In 7.0 the whole deserialization of that object fails. Decide per place whether
+to catch `DeserializationException`, or to widen the type of the property.
+
+## Other fixes that change a result
+
+- A union of scalars and `array`, for example `int|string`, keeps the type of the input. 6.x gave `"5"` for `5`. A union
+  with a class, a custom `handler` or a custom `type` still goes through the handler of its first type.
+- A `set` hook decides what the property takes: `set(string|array $value)` receives both, and `set(?string $value)`
+  receives `null`. 6.x used the type of the property.
+- A nullable constructor parameter that is not promoted, `?string $name`, accepts a value. 6.x threw
+  `Unable to determine deserialization handler`.
+- The name taken from a method drops only a `get` or `is` prefix. 6.x removed any leading letters from `g`, `e`, `t`, `i`
+  and `s`, so `size()` gave `ze` and `title()` gave `tle`. A class that relied on such a name must set `serializedName`.
+- `Unable to deserialize "x". Check type.` from a failed write is now `Unable to deserialize "Class::$x": <reason>`.
+
 ## Other changes
 
 - Promoted properties are filled by the constructor and are not written again after it, so a `readonly` promoted
@@ -62,6 +102,9 @@ inheriting from that class.
 - `JsonSerializer` and `JsonDeserializer` take an optional third constructor argument, `PropertyAccessor`
   (default `new PropertyAccessor()`). Code that creates them by hand needs no change.
 - `Metadata::$getterSetterStrategy` is replaced by `$getterIsMethod` and `$setterIsMethod`. `$readInClassScope` and
-  `$writeInClassScope` say whether a direct read or write needs the scope of the declaring class.
+  `$writeInClassScope` say whether a direct read or write needs the scope of the declaring class. `$scalarUnionTypes` lists
+  the types of a scalar union.
+- Two properties with the same data name still end with the last one read, as in 6.x, so an inherited `protected` or
+  `public` property wins over a property of the child class. Only a `private` property of a parent gives way to the child.
 - The metadata cache key prefix changed from `anzu_serialz_` to `anzu_serialz_v7_`, so metadata cached by 6.x is not
   read.

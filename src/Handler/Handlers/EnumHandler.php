@@ -38,6 +38,9 @@ final class EnumHandler extends AbstractHandler
 
     public function deserialize(mixed $value, Metadata $metadata): UnitEnum
     {
+        if (false === is_string($value) && false === is_int($value)) {
+            throw $this->invalidValue($value, $metadata);
+        }
         if (is_a($metadata->type, BackedEnum::class, true)) {
             $enumValue = $metadata->type::tryFrom($value);
             if ($enumValue instanceof BackedEnum) {

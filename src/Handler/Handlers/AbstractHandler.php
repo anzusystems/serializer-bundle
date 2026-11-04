@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
+use AnzuSystems\SerializerBundle\Exception\DeserializationException;
 use AnzuSystems\SerializerBundle\Helper\SerializerHelper;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use Symfony\Component\TypeInfo\TypeIdentifier;
@@ -57,5 +58,16 @@ abstract class AbstractHandler implements HandlerInterface
         }
 
         return $description;
+    }
+
+    protected function invalidValue(mixed $value, Metadata $metadata): DeserializationException
+    {
+        return new DeserializationException(sprintf(
+            'Unable to deserialize "%s::$%s". Expected %s, got %s.',
+            $metadata->declaringClass ?? '',
+            $metadata->property ?? '',
+            $metadata->type,
+            get_debug_type($value),
+        ));
     }
 }

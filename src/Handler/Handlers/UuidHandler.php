@@ -37,6 +37,9 @@ final class UuidHandler extends AbstractHandler
         if (null === $value) {
             return null;
         }
+        if (false === is_string($value) || ('' !== $value && false === Uuid::isValid($value))) {
+            throw $this->invalidValue($value, $metadata);
+        }
         if ('00000000-0000-0000-0000-000000000000' === $value || '' === $value) {
             return new NilUuid();
         }

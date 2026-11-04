@@ -7,6 +7,7 @@ namespace AnzuSystems\SerializerBundle\Metadata;
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
 use AnzuSystems\SerializerBundle\DependencyInjection\AnzuSystemsSerializerExtension;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use AnzuSystems\SerializerBundle\Handler\Handlers\BasicHandler;
 use Doctrine\Common\Collections\Order;
 use PropertyHookType;
 use ReflectionClass;
@@ -14,6 +15,7 @@ use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionProperty;
+use ReflectionType;
 use ReflectionUnionType;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\TypeInfo\TypeIdentifier;
@@ -101,7 +103,7 @@ final readonly class MetadataFactory
             }
 
             $constructorMetadata[$dataName] = new Metadata(
-                (string) $parameter->getType(),
+                self::resolveTypeName($parameter->getType()),
                 $parameter->allowsNull(),
                 '',
                 $parameter->getName(),
@@ -112,6 +114,7 @@ final readonly class MetadataFactory
                 $attribute->persistedName,
                 $attribute->discriminatorMap,
                 orderBy: self::resolveOrderBy($attribute),
+                scalarUnionTypes: self::resolveScalarUnionTypes($parameter->getType(), $attribute),
             );
         }
 
@@ -181,7 +184,7 @@ final readonly class MetadataFactory
             /** @var Serialize $attribute */
             $attribute = $attributes[0]->newInstance();
             $dataName = $attribute->serializedName
-                ?? lcfirst((string) preg_replace('~^[get|is]*(.+)~', '$1', $method->getName()))
+                ?? lcfirst((string) preg_replace('~^(?:get|is)(?=[A-Z])~', '', $method->getName()))
             ;
             $metadata[$dataName] = $this->getMethodMetadata($method, $attribute);
         }
@@ -194,27 +197,10 @@ final readonly class MetadataFactory
      */
     private function getMethodMetadata(ReflectionMethod $method, Serialize $attribute): Metadata
     {
-        $type = '';
         $methodType = $method->getReturnType();
-        if ($methodType instanceof ReflectionNamedType) {
-            $type = $methodType->getName();
-        }
-
-        if ($methodType instanceof ReflectionUnionType) {
-            foreach ($methodType->getTypes() as $returnType) {
-                if ($returnType instanceof ReflectionNamedType) {
-                    if ('null' === $returnType->getName()) {
-                        continue;
-                    }
-                    $type = $returnType->getName();
-
-                    break;
-                }
-            }
-        }
 
         return new Metadata(
-            $type,
+            self::resolveTypeName($methodType),
             (bool) $methodType?->allowsNull(),
             $method->getName(),
             null,
@@ -237,27 +223,9 @@ final readonly class MetadataFactory
             );
         }
 
-        $getterPrefix = 'get';
-        $propertyType = $property->getType();
-        $type = '';
-        if ($propertyType instanceof ReflectionNamedType) {
-            $type = $propertyType->getName();
-            if (TypeIdentifier::BOOL->value === $type) {
-                $getterPrefix = 'is';
-            }
-        }
-        if ($propertyType instanceof ReflectionUnionType) {
-            foreach ($propertyType->getTypes() as $returnType) {
-                if ($returnType instanceof ReflectionNamedType) {
-                    if ('null' === $returnType->getName()) {
-                        continue;
-                    }
-                    $type = $returnType->getName();
-
-                    break;
-                }
-            }
-        }
+        $propertyType = $property->hasHook(PropertyHookType::Set) ? $property->getSettableType() : $property->getType();
+        $type = self::resolveTypeName($propertyType);
+        $getterPrefix = TypeIdentifier::BOOL->value === $type && $propertyType instanceof ReflectionNamedType ? 'is' : 'get';
         $usesAccessors = false === $property->isPublic() && false === $property->hasHooks();
         $getter = $usesAccessors ? $this->findGetter(reflection: $reflection, property: $property, getterPrefix: $getterPrefix) : null;
         $setter = $usesAccessors ? $this->findPublicMethod($reflection, 'set' . ucfirst($property->getName())) : null;
@@ -289,6 +257,7 @@ final readonly class MetadataFactory
             constructorReadonly: $property->isReadOnly() && false === $filledByConstructor && null !== $reflection->getConstructor(),
             readInClassScope: false === $property->isPublic(),
             writeInClassScope: false === $property->isPublic() || $property->isPrivateSet() || $property->isProtectedSet(),
+            scalarUnionTypes: self::resolveScalarUnionTypes($propertyType, $attribute),
         );
     }
 
@@ -390,6 +359,49 @@ final readonly class MetadataFactory
         }
 
         return $attribute->type;
+    }
+
+    private static function resolveTypeName(?ReflectionType $type): string
+    {
+        if ($type instanceof ReflectionNamedType) {
+            return $type->getName();
+        }
+        if ($type instanceof ReflectionUnionType) {
+            foreach ($type->getTypes() as $unionType) {
+                if ($unionType instanceof ReflectionNamedType && 'null' !== $unionType->getName()) {
+                    return $unionType->getName();
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * A handler serves one type, so it would turn the int 5 of an int|string into "5". A class in the union, a custom
+     * handler or a custom type keeps the handler, because they turn the input into something else.
+     *
+     * @return list<string>
+     */
+    private static function resolveScalarUnionTypes(?ReflectionType $type, Serialize $attribute): array
+    {
+        if (false === $type instanceof ReflectionUnionType || null !== $attribute->handler || false === empty($attribute->type)) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($type->getTypes() as $unionType) {
+            $name = $unionType instanceof ReflectionNamedType ? $unionType->getName() : '';
+            if ('null' === $name) {
+                continue;
+            }
+            if (false === in_array($name, [...BasicHandler::BASIC_TYPES, TypeIdentifier::ARRAY->value], true)) {
+                return [];
+            }
+            $names[] = $name;
+        }
+
+        return count($names) > 1 ? $names : [];
     }
 
     /**

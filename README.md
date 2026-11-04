@@ -155,6 +155,11 @@ PHP attributes are not inherited, so a property that a child class declares agai
     }
 ```
 
+Input that does not fit the type throws a `DeserializationException` that names the property: text into a number, an array
+into a scalar, `null` into a non-nullable array, class, date, UUID or enum. Numeric text, a `bool`, an empty text and `null`
+still convert to a scalar, and a `float` into an `int` is cut. A union of scalars keeps the type of the input, and a `set`
+hook receives what its parameter declares. See *Check what your classes receive from outside* in `UPGRADE-7.0.md`.
+
 Properties promoted by the constructor of the deserialized class are filled by it, so they can be `readonly`. A
 `private` or `protected` promoted property that has a setter is written by the setter once more after the
 constructor. A property promoted by a parent constructor that the child class overrides without promoting it is written

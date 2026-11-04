@@ -12,6 +12,7 @@ final class Metadata
      * @param array<string, class-string>|null $discriminatorMap
      * @param null|array<string, 'ASC'|'DESC'> $orderBy
      * @param class-string|null $declaringClass
+     * @param list<string> $scalarUnionTypes the types kept as they are in the input, for a union of scalars and array
      */
     public function __construct(
         public string $type,
@@ -33,6 +34,7 @@ final class Metadata
         public bool $constructorReadonly = false,
         public bool $readInClassScope = false,
         public bool $writeInClassScope = false,
+        public array $scalarUnionTypes = [],
     ) {
     }
 }

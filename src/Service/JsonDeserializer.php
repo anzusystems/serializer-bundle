@@ -104,9 +104,11 @@ final class JsonDeserializer
                 // the constructor took the default value instead, and a handler would turn null into 0 or ''
                 continue;
             }
-            $value = $this->handlerResolver
-                ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
-                ->deserialize($dataValue, $metadata)
+            $value = [] !== $metadata->scalarUnionTypes && $this->fitsScalarUnion($dataValue, $metadata)
+                ? $dataValue
+                : $this->handlerResolver
+                    ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
+                    ->deserialize($dataValue, $metadata)
             ;
             if (null === $value && false === $metadata->isNullable) {
                 continue;
@@ -115,7 +117,10 @@ final class JsonDeserializer
             try {
                 $this->propertyAccessor->setValue($object, $metadata, $value);
             } catch (Throwable $exception) {
-                throw new SerializerException('Unable to deserialize "' . $name . '". Check type.', 0, $exception);
+                throw new SerializerException(
+                    message: sprintf('Unable to deserialize "%s::$%s": %s', $className, $name, $exception->getMessage()),
+                    previous: $exception,
+                );
             }
         }
 
@@ -174,6 +179,11 @@ final class JsonDeserializer
         return $batches;
     }
 
+    private function fitsScalarUnion(mixed $value, Metadata $metadata): bool
+    {
+        return in_array(get_debug_type($value), $metadata->scalarUnionTypes, true);
+    }
+
     private function usesBatchHandler(Metadata $metadata): bool
     {
         return null !== $metadata->customHandler
@@ -212,9 +222,11 @@ final class JsonDeserializer
                 && (null !== $data[$name] || $metadata->isNullable);
             if ($isProvided) {
                 $dataValue = $data[$name];
-                $value = $this->handlerResolver
-                    ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
-                    ->deserialize($dataValue, $metadata);
+                $value = [] !== $metadata->scalarUnionTypes && $this->fitsScalarUnion($dataValue, $metadata)
+                    ? $dataValue
+                    : $this->handlerResolver
+                        ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
+                        ->deserialize($dataValue, $metadata);
                 if (null !== $value || $metadata->isNullable) {
                     $arguments[(string) $metadata->property] = $value;
 
