@@ -7,6 +7,7 @@ namespace Symfony\Component\DependencyInjection\Loader\Configurator;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Controller\DummyController;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\NonSharedHandler;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\RecordingBatchHandler;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\RecordingDeserializeBatchHandler;
 
 return static function (ContainerConfigurator $configurator): void {
     $services = $configurator->services();
@@ -17,6 +18,12 @@ return static function (ContainerConfigurator $configurator): void {
     ;
 
     $services->set(RecordingBatchHandler::class)
+        ->autowire(true)
+        ->autoconfigure(true)
+        ->public()
+    ;
+
+    $services->set(RecordingDeserializeBatchHandler::class)
         ->autowire(true)
         ->autoconfigure(true)
         ->public()

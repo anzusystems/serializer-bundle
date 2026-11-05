@@ -6,6 +6,7 @@ namespace AnzuSystems\SerializerBundle\Handler\Handlers;
 
 use AnzuSystems\SerializerBundle\Context\SerializationContext;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
+use InvalidArgumentException;
 use Symfony\Component\TypeInfo\TypeIdentifier;
 use Symfony\Component\Uid\AbstractUid;
 use Symfony\Component\Uid\MaxUuid;
@@ -37,6 +38,9 @@ final class UuidHandler extends AbstractHandler
         if (null === $value) {
             return null;
         }
+        if (false === is_string($value)) {
+            throw $this->invalidValue($value, $metadata);
+        }
         if ('00000000-0000-0000-0000-000000000000' === $value || '' === $value) {
             return new NilUuid();
         }
@@ -44,7 +48,11 @@ final class UuidHandler extends AbstractHandler
             return new MaxUuid();
         }
 
-        return Uuid::fromString($value);
+        try {
+            return Uuid::fromString($value);
+        } catch (InvalidArgumentException) {
+            throw $this->invalidValue($value, $metadata);
+        }
     }
 
     public static function supportsDescribe(string $property, Metadata $metadata): bool

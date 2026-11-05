@@ -18,16 +18,13 @@ final class Serializer
     }
 
     /**
-     * @template T
+     * @template T of object
      *
      * @param class-string<T> $className
      *
      * @return T
      *
      * @throws SerializerException
-     *
-     * @psalm-suppress InvalidReturnType
-     * @psalm-suppress InvalidReturnStatement
      */
     public function deserialize(string $data, string $className): object
     {
@@ -53,7 +50,7 @@ final class Serializer
     }
 
     /**
-     * @template T
+     * @template T of object
      *
      * @param class-string<T> $className
      *

@@ -53,8 +53,12 @@ final class ArrayStringHandler extends AbstractHandler
     private function getDeserializeFunction(Metadata $metadata): \Closure
     {
         return match ($metadata->customType) {
-            TypeIdentifier::INT->value => fn (string $item): int => (int) $item,
-            TypeIdentifier::FLOAT->value => fn (string $item): float => (float) $item,
+            TypeIdentifier::INT->value => fn (string $item): int => '' === $item || is_numeric($item)
+                ? (int) $item
+                : throw $this->invalidValue($item, $metadata),
+            TypeIdentifier::FLOAT->value => fn (string $item): float => '' === $item || is_numeric($item)
+                ? (float) $item
+                : throw $this->invalidValue($item, $metadata),
             default => fn (string $item): string => trim($item),
         };
     }

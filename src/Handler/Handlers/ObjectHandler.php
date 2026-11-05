@@ -61,7 +61,7 @@ final class ObjectHandler extends AbstractHandler
     /**
      * @inheritDoc
      *
-     * @param array $value
+     * @param array|\stdClass $value
      */
     public function deserialize(mixed $value, Metadata $metadata): object|iterable
     {
@@ -86,7 +86,6 @@ final class ObjectHandler extends AbstractHandler
             if ($metadata->customType || $metadata->discriminatorMap) {
                 $array = [];
                 foreach ($value as $key => $item) {
-                    /** @psalm-suppress ArgumentTypeCoercion */
                     $array[$key] = $this->jsonDeserializer->fromArray($item, $this->getDeserializeCustomType($item, $metadata) ?? $metadata->type);
                 }
 
@@ -96,7 +95,6 @@ final class ObjectHandler extends AbstractHandler
             return $value;
         }
 
-        /** @psalm-suppress ArgumentTypeCoercion */
         return $this->jsonDeserializer->fromArray($value, $this->getDeserializeCustomType($value, $metadata) ?? $metadata->type);
     }
 
@@ -135,9 +133,6 @@ final class ObjectHandler extends AbstractHandler
 
     /**
      * @return class-string|null
-     *
-     * @psalm-suppress LessSpecificReturnStatement
-     * @psalm-suppress MoreSpecificReturnType
      */
     private function getDeserializeCustomType(mixed $item, Metadata $metadata): string|null
     {

@@ -66,8 +66,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
 
             // Describe symfony constraints and property docBlock description.
             if (is_string($metadata->property) && $typeInfo instanceof ObjectType && false === empty($typeInfo->getClassName())) {
-                /** @psalm-suppress ArgumentTypeCoercion */
-                $propertyReflection = new ReflectionProperty($typeInfo->getClassName(), $metadata->property);
+                $propertyReflection = new ReflectionProperty($metadata->declaringClass ?? $typeInfo->getClassName(), $metadata->property);
                 $this->getSymfonyConstraintAnnotationReader()
                     ->updateProperty($propertyReflection, $property);
                 $this->addDocBlockDescription($propertyReflection, $property);
@@ -75,10 +74,9 @@ final class SerializerModelDescriber implements ModelDescriberInterface
 
             // Method docBlock description.
             if (is_string($metadata->setter) && $typeInfo instanceof ObjectType && false === empty($typeInfo->getClassName())) {
-                /** @psalm-suppress ArgumentTypeCoercion */
-                $methodReflection = $metadata->getterSetterStrategy
+                $methodReflection = $metadata->getterIsMethod
                     ? new ReflectionMethod($typeInfo->getClassName(), $metadata->getter)
-                    : new ReflectionProperty($typeInfo->getClassName(), $metadata->getter)
+                    : new ReflectionProperty($metadata->declaringClass ?? $typeInfo->getClassName(), $metadata->getter)
                 ;
                 $this->addDocBlockDescription($methodReflection, $property);
             }
@@ -91,7 +89,6 @@ final class SerializerModelDescriber implements ModelDescriberInterface
     private function getSymfonyConstraintAnnotationReader(): SymfonyConstraintAnnotationReader
     {
         if (null === $this->symfonyConstraintAnnotationReader) {
-            /** @psalm-suppress NullArgument */
             $this->symfonyConstraintAnnotationReader = new SymfonyConstraintAnnotationReader();
         }
 
@@ -141,6 +138,7 @@ final class SerializerModelDescriber implements ModelDescriberInterface
             'property' => $property,
             'title' => SerializerHelper::getClassBaseName($className),
             'readOnly' => $description['readOnly'] ?? false,
+            'writeOnly' => $description['writeOnly'] ?? false,
             'nullable' => $description['nullable'] ?? false,
         ]);
         if ($this->supports($nestedModel)) {

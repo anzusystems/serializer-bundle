@@ -7,16 +7,18 @@ namespace AnzuSystems\SerializerBundle\Metadata;
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
 use AnzuSystems\SerializerBundle\DependencyInjection\AnzuSystemsSerializerExtension;
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
+use AnzuSystems\SerializerBundle\Handler\Handlers\BasicHandler;
 use Doctrine\Common\Collections\Order;
+use PropertyHookType;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionProperty;
+use ReflectionType;
 use ReflectionUnionType;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Symfony\Component\TypeInfo\TypeIdentifier;
-use const PHP_VERSION;
 
 final readonly class MetadataFactory
 {
@@ -34,38 +36,43 @@ final readonly class MetadataFactory
     {
         try {
             $reflection = new ReflectionClass($className);
-        } catch (ReflectionException $exception) {
+        } catch (ReflectionException $exception) { // @phpstan-ignore catch.neverThrown (class-string is not checked at runtime, a missing class still throws)
             throw new SerializerException('Cannot create reflection for ' . $className, 0, $exception);
         }
 
         $propertyMetadata = $this->buildPropertyMetadata($reflection);
 
-        return new ClassMetadata(
-            array_merge(
+        return $this->buildClassMetadata(
+            metadata: array_merge(
                 $propertyMetadata,
                 $this->buildMethodMetadata($reflection)
             ),
-            $this->buildConstructorMetadata($propertyMetadata, $reflection),
+            propertyMetadata: $propertyMetadata,
+            reflection: $reflection,
         );
     }
 
     /**
+     * @param array<string, Metadata> $metadata
+     * @param array<string, Metadata> $propertyMetadata
+     *
      * @throws SerializerException
      */
-    private function buildConstructorMetadata(array $propertyMetadata, ReflectionClass $reflection): array
+    private function buildClassMetadata(array $metadata, array $propertyMetadata, ReflectionClass $reflection): ClassMetadata
     {
         $constructorMethod = $reflection->getConstructor();
         if (null === $constructorMethod) {
             // the class has no constructor
-            return [];
+            return new ClassMetadata($metadata, []);
         }
 
         if (0 === ($constructorMethod->getModifiers() & ReflectionMethod::IS_PUBLIC)) {
             // the class has private/protected constructor
-            return [];
+            return new ClassMetadata($metadata, []);
         }
 
-        $metadata = [];
+        $constructorMetadata = [];
+        $optionalConstructorArguments = [];
         foreach ($constructorMethod->getParameters() as $parameter) {
             $attribute = $this->findRelatedClassPropertyAttribute($reflection, $parameter->getName());
 
@@ -77,8 +84,15 @@ final readonly class MetadataFactory
 
             $dataName = $attribute->serializedName ?? $parameter->getName();
             $propertyMeta = $propertyMetadata[$dataName] ?? null;
-            if ($parameter->isPromoted() && $propertyMeta) {
-                $metadata[$dataName] = $propertyMeta;
+            if (true === $propertyMeta?->filledByConstructor && $parameter->getName() === $propertyMeta->property) {
+                if ($parameter->isDefaultValueAvailable()) {
+                    if (isset($constructorMetadata[$dataName])) {
+                        // a required parameter of the same data name keeps it: both cannot take one value
+                        continue;
+                    }
+                    $optionalConstructorArguments[] = $dataName;
+                }
+                $constructorMetadata[$dataName] = $propertyMeta;
 
                 continue;
             }
@@ -88,8 +102,8 @@ final readonly class MetadataFactory
                 continue;
             }
 
-            $metadata[$dataName] = new Metadata(
-                (string) $parameter->getType(),
+            $constructorMetadata[$dataName] = new Metadata(
+                self::resolveTypeName($parameter->getType()),
                 $parameter->allowsNull(),
                 '',
                 $parameter->getName(),
@@ -100,10 +114,16 @@ final readonly class MetadataFactory
                 $attribute->persistedName,
                 $attribute->discriminatorMap,
                 orderBy: self::resolveOrderBy($attribute),
+                declaringClass: $reflection->getName(),
+                scalarUnionTypes: self::resolveScalarUnionTypes($parameter->getType(), $attribute),
             );
         }
 
-        return $metadata;
+        return new ClassMetadata(
+            metadata: $metadata,
+            constructorMetadata: $constructorMetadata,
+            optionalConstructorArguments: $optionalConstructorArguments,
+        );
     }
 
     /**
@@ -112,7 +132,7 @@ final readonly class MetadataFactory
     private function buildPropertyMetadata(ReflectionClass $reflection): array
     {
         $metadata = [];
-        foreach ($reflection->getProperties() as $property) {
+        foreach ($this->collectProperties($reflection) as $property) {
             $attributes = $property->getAttributes(Serialize::class);
             if (false === array_key_exists(0, $attributes)) {
                 continue;
@@ -120,10 +140,34 @@ final readonly class MetadataFactory
             /** @var Serialize $attribute */
             $attribute = $attributes[0]->newInstance();
             $dataName = $attribute->serializedName ?? $property->getName();
-            $metadata[$dataName] = $this->getPropertyMetadata($property, $attribute);
+            if (isset($metadata[$dataName]) && $property->isPrivate() && $property->getDeclaringClass()->getName() !== $reflection->getName()) {
+                continue;
+            }
+            $metadata[$dataName] = $this->getPropertyMetadata(
+                property: $property,
+                attribute: $attribute,
+                reflection: $reflection,
+            );
         }
 
         return $metadata;
+    }
+
+    /**
+     * ReflectionClass::getProperties() leaves out the private properties of parent classes.
+     *
+     * @return array<string, ReflectionProperty>
+     */
+    private function collectProperties(ReflectionClass $reflection): array
+    {
+        $properties = [];
+        for ($class = $reflection; false !== $class; $class = $class->getParentClass()) {
+            foreach ($class->getProperties() as $property) {
+                $properties[$property->getName()] ??= $property;
+            }
+        }
+
+        return $properties;
     }
 
     /**
@@ -141,7 +185,7 @@ final readonly class MetadataFactory
             /** @var Serialize $attribute */
             $attribute = $attributes[0]->newInstance();
             $dataName = $attribute->serializedName
-                ?? lcfirst((string) preg_replace('~^[get|is]*(.+)~', '$1', $method->getName()))
+                ?? lcfirst((string) preg_replace('~^(?:get|is)(?=[A-Z])~', '', $method->getName()))
             ;
             $metadata[$dataName] = $this->getMethodMetadata($method, $attribute);
         }
@@ -154,27 +198,10 @@ final readonly class MetadataFactory
      */
     private function getMethodMetadata(ReflectionMethod $method, Serialize $attribute): Metadata
     {
-        $type = '';
         $methodType = $method->getReturnType();
-        if ($methodType instanceof ReflectionNamedType) {
-            $type = $methodType->getName();
-        }
-
-        if ($methodType instanceof ReflectionUnionType) {
-            foreach ($methodType->getTypes() as $returnType) {
-                if ($returnType instanceof ReflectionNamedType) {
-                    if ('null' === $returnType->getName()) {
-                        continue;
-                    }
-                    $type = $returnType->getName();
-
-                    break;
-                }
-            }
-        }
 
         return new Metadata(
-            $type,
+            self::resolveTypeName($methodType),
             (bool) $methodType?->allowsNull(),
             $method->getName(),
             null,
@@ -189,82 +216,126 @@ final readonly class MetadataFactory
     /**
      * @throws SerializerException
      */
-    private function getPropertyMetadata(ReflectionProperty $property, Serialize $attribute): Metadata
+    private function getPropertyMetadata(ReflectionProperty $property, Serialize $attribute, ReflectionClass $reflection): Metadata
     {
-        $getterPrefix = 'get';
-        $propertyType = $property->getType();
-        $type = '';
-        if ($propertyType instanceof ReflectionNamedType) {
-            $type = $propertyType->getName();
-            if (TypeIdentifier::BOOL->value === $type) {
-                $getterPrefix = 'is';
-            }
+        if ($property->isStatic()) {
+            throw new SerializerException(
+                sprintf('Static property "%s::$%s" cannot be serialized.', $property->getDeclaringClass()->getName(), $property->getName())
+            );
         }
-        if ($propertyType instanceof ReflectionUnionType) {
-            foreach ($propertyType->getTypes() as $returnType) {
-                if ($returnType instanceof ReflectionNamedType) {
-                    if ('null' === $returnType->getName()) {
-                        continue;
-                    }
-                    $type = $returnType->getName();
 
-                    break;
-                }
-            }
-        }
-        $getter = $setter = null;
-        $getterSetterStrategy = true;
-        if (version_compare(PHP_VERSION, '8.4.0', '>=') && $property->hasHooks()) {
-            $getterSetterStrategy = false;
-            /** @psalm-suppress UndefinedClass */
-            if ($property->hasHook(\PropertyHookType::Get)) {
-                $getter = $property->getName();
-            }
-            /** @psalm-suppress UndefinedClass */
-            if ($property->hasHook(\PropertyHookType::Set)) {
-                $setter = $property->getName();
-            }
-        }
-        if ($property->isPublic()) {
-            $getterSetterStrategy = false;
-            $getter = $setter = $property->getName();
-            if (version_compare(PHP_VERSION, '8.4.0', '>=') && $property->isPrivateSet()) {
-                $setter = null;
-            }
-        }
-        if ($getterSetterStrategy) {
-            $getter = $getterPrefix . ucfirst($property->getName());
-            $declaringClass = $property->getDeclaringClass();
-            if (false === $declaringClass->hasMethod($getter)) {
-                // fallback to "get" prefix
-                $getterFallback = 'get' . ucfirst($property->getName());
-                if (false === $declaringClass->hasMethod($getterFallback)) {
-                    throw new SerializerException('Getter method ' . $getter . ' or ' . $getterFallback . ' not found in ' . $declaringClass->getName() . '.');
-                }
-
-                $getter = $getterFallback;
-            }
-            $setter = 'set' . ucfirst($property->getName());
-            if (false === $declaringClass->hasMethod($setter)) {
-                // setter is required for deserialization only
-                $setter = null;
-            }
-        }
+        $propertyType = $property->hasHook(PropertyHookType::Set) ? $property->getSettableType() : $property->getType();
+        $type = self::resolveTypeName($propertyType);
+        $getterPrefix = TypeIdentifier::BOOL->value === $type && $propertyType instanceof ReflectionNamedType ? 'is' : 'get';
+        $usesAccessors = false === $property->isPublic() && false === $property->hasHooks();
+        $getter = $usesAccessors ? $this->findGetter(reflection: $reflection, property: $property, getterPrefix: $getterPrefix) : null;
+        $setter = $usesAccessors ? $this->findPublicMethod($reflection, 'set' . ucfirst($property->getName())) : null;
+        $filledByConstructor = $this->isFilledByConstructor($property, $reflection);
 
         return new Metadata(
             $type,
             (bool) $propertyType?->allowsNull(),
-            (string) $getter,
+            $getter ?? $property->getName(),
             $property->getName(),
-            $setter,
+            $this->resolveSetter(
+                property: $property,
+                getter: $getter,
+                setter: $setter,
+                filledByConstructor: $filledByConstructor,
+            ),
             $attribute->handler,
             $this->resolveCustomType($attribute),
             $attribute->strategy,
             $attribute->persistedName,
             $attribute->discriminatorMap,
             orderBy: self::resolveOrderBy($attribute),
-            getterSetterStrategy: $getterSetterStrategy,
+            getterIsMethod: null !== $getter,
+            setterIsMethod: null !== $setter,
+            declaringClass: $property->getDeclaringClass()
+                ->getName(),
+            readable: null !== $getter || $this->isPropertyReadable($property),
+            filledByConstructor: $filledByConstructor,
+            readonlyNotFilledByConstructor: $property->isReadOnly() && false === $filledByConstructor && null !== $reflection->getConstructor(),
+            readInClassScope: false === $property->isPublic(),
+            writeInClassScope: false === $property->isPublic() || $property->isPrivateSet() || $property->isProtectedSet(),
+            scalarUnionTypes: self::resolveScalarUnionTypes($propertyType, $attribute),
         );
+    }
+
+    private function findGetter(ReflectionClass $reflection, ReflectionProperty $property, string $getterPrefix): ?string
+    {
+        foreach ([$getterPrefix, 'get'] as $prefix) {
+            $getter = $this->findPublicMethod($reflection, $prefix . ucfirst($property->getName()));
+            if (null !== $getter) {
+                return $getter;
+            }
+        }
+
+        return null;
+    }
+
+    private function findPublicMethod(ReflectionClass $reflection, string $name): ?string
+    {
+        return $reflection->hasMethod($name) && $reflection->getMethod($name)
+            ->isPublic() ? $name : null;
+    }
+
+    private function resolveSetter(ReflectionProperty $property, ?string $getter, ?string $setter, bool $filledByConstructor): ?string
+    {
+        if (null !== $setter) {
+            return $setter;
+        }
+        if (null !== $getter) {
+            return null;
+        }
+
+        return $this->isPropertyWritable($property, $filledByConstructor) ? $property->getName() : null;
+    }
+
+    private function isPropertyReadable(ReflectionProperty $property): bool
+    {
+        return false === $property->isVirtual() || $property->hasHook(PropertyHookType::Get);
+    }
+
+    /**
+     * ReflectionProperty::isPromoted() names the constructor that declares the property, which a child class may have
+     * overridden, so only the constructor of the deserialized class counts. A private property promoted by a parent is
+     * not the child's property of the same name. A readonly property cannot be written after the constructor, so a
+     * parameter of its name and type takes the value, and the parameter may accept null where the property does not.
+     */
+    private function isFilledByConstructor(ReflectionProperty $property, ReflectionClass $reflection): bool
+    {
+        $constructor = $reflection->getConstructor();
+        if (null === $constructor || false === $constructor->isPublic()) {
+            return false;
+        }
+
+        foreach ($constructor->getParameters() as $parameter) {
+            if ($property->getName() !== $parameter->getName()) {
+                continue;
+            }
+            if (false === $parameter->isPromoted()) {
+                return $property->isReadOnly() && self::typeWithoutNull($parameter->getType()) === self::typeWithoutNull($property->getType());
+            }
+
+            $promotingClass = $constructor->getDeclaringClass();
+
+            return $promotingClass->getName() === $property->getDeclaringClass()
+                ->getName()
+                || false === $promotingClass->getProperty($property->getName())
+                    ->isPrivate();
+        }
+
+        return false;
+    }
+
+    private function isPropertyWritable(ReflectionProperty $property, bool $filledByConstructor): bool
+    {
+        if ($filledByConstructor) {
+            return false;
+        }
+
+        return false === $property->isVirtual() || $property->hasHook(PropertyHookType::Set);
     }
 
     /**
@@ -279,7 +350,6 @@ final readonly class MetadataFactory
         if ($attribute->type instanceof ContainerParam) {
             $paramName = $attribute->type->paramName;
             if ($this->parameterBag->has($paramName)) {
-                /** @psalm-suppress PossiblyInvalidCast */
                 return (string) $this->parameterBag->get($paramName);
             }
 
@@ -290,6 +360,54 @@ final readonly class MetadataFactory
         }
 
         return $attribute->type;
+    }
+
+    private static function typeWithoutNull(?ReflectionType $type): string
+    {
+        return str_replace('|null', '', ltrim((string) $type, '?'));
+    }
+
+    private static function resolveTypeName(?ReflectionType $type): string
+    {
+        if ($type instanceof ReflectionNamedType) {
+            return $type->getName();
+        }
+        if ($type instanceof ReflectionUnionType) {
+            foreach ($type->getTypes() as $unionType) {
+                if ($unionType instanceof ReflectionNamedType && 'null' !== $unionType->getName()) {
+                    return $unionType->getName();
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * A handler serves one type, so it would turn the int 5 of an int|string into "5". A class in the union, a custom
+     * handler or a custom type keeps the handler, because they turn the input into something else.
+     *
+     * @return list<string>
+     */
+    private static function resolveScalarUnionTypes(?ReflectionType $type, Serialize $attribute): array
+    {
+        if (false === $type instanceof ReflectionUnionType || null !== $attribute->handler || false === empty($attribute->type)) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($type->getTypes() as $unionType) {
+            $name = $unionType instanceof ReflectionNamedType ? $unionType->getName() : '';
+            if ('null' === $name) {
+                continue;
+            }
+            if (false === in_array($name, [...BasicHandler::BASIC_TYPES, TypeIdentifier::ARRAY->value], true)) {
+                return [];
+            }
+            $names[] = $name;
+        }
+
+        return count($names) > 1 ? $names : [];
     }
 
     /**
@@ -312,7 +430,7 @@ final readonly class MetadataFactory
      */
     private function findRelatedClassPropertyAttribute(ReflectionClass $reflection, string $name): ?Serialize
     {
-        foreach ($reflection->getProperties() as $property) {
+        foreach ($this->collectProperties($reflection) as $property) {
             if ($property->getName() !== $name) {
                 continue;
             }

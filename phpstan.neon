@@ -1,0 +1,8 @@
+parameters:
+    tmpDir: var/cache/phpstan
+    level: 5
+    phpVersion: 80400
+    paths:
+        - src
+    excludePaths:
+        - src/DependencyInjection/Configuration.php

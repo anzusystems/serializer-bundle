@@ -9,7 +9,11 @@ use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchListDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\BatchOtherDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\BatchSetOnlyDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlySetBatchDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyUnsetBatchDto;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\RecordingBatchHandler;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Serializer\RecordingDeserializeBatchHandler;
 use Doctrine\Common\Collections\ArrayCollection;
 use Exception;
 use Generator;
@@ -68,6 +72,11 @@ final class BatchHandlerTest extends AbstractTestCase
             [['same', 'same']],
             '[{"code":"same","label":"One"},{"code":"same","label":"Two"}]',
         ];
+        yield 'set only property is not read for the batch' => [
+            [new BatchSetOnlyDto('first')],
+            [],
+            '[{"label":"first"}]',
+        ];
     }
 
     /**
@@ -115,6 +124,30 @@ final class BatchHandlerTest extends AbstractTestCase
         $this->serializer->serialize(self::items(), SerializationContext::create()->setSerializeNulls(false));
 
         self::assertSame([false], $this->handler->getBatchedSerializeNulls());
+    }
+
+    /**
+     * @param class-string<ReadonlySetBatchDto|ReadonlyUnsetBatchDto> $className
+     * @param list<list<mixed>> $expectedBatches
+     *
+     * @throws SerializerException
+     */
+    #[DataProvider('readonlyInputData')]
+    public function testReadonlyInputIsPreparedOnlyWhenTheConstructorLeavesItUnset(
+        string $className,
+        string $expectedCode,
+        array $expectedBatches,
+    ): void {
+        $dto = $this->serializer->deserialize('{"code":"input"}', $className);
+
+        self::assertSame($expectedCode, $dto->code);
+        self::assertSame($expectedBatches, self::getContainer()->get(RecordingDeserializeBatchHandler::class)->getBatches());
+    }
+
+    public static function readonlyInputData(): iterable
+    {
+        yield 'the constructor overrules the input' => [ReadonlySetBatchDto::class, 'constructor', []];
+        yield 'the constructor leaves it unset' => [ReadonlyUnsetBatchDto::class, 'input', [['input']]];
     }
 
     /**

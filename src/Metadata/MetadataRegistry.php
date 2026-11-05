@@ -13,7 +13,9 @@ use Psr\Log\LoggerInterface;
 
 final class MetadataRegistry
 {
-    private const string CACHE_PREFIX = 'anzu_serialz_';
+    // Raise it with every change of the fields of Metadata or ClassMetadata: a cached entry misses a new field, and a
+    // pool such as cache.app survives a deploy.
+    private const string CACHE_PREFIX = 'anzu_serialz_v7_';
 
     /**
      * @var array<class-string, ClassMetadata>

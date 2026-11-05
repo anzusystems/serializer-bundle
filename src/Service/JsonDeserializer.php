@@ -21,6 +21,7 @@ final class JsonDeserializer
     public function __construct(
         private readonly HandlerResolver $handlerResolver,
         private readonly MetadataRegistry $metadataRegistry,
+        private readonly PropertyAccessor $propertyAccessor = new PropertyAccessor(),
     ) {
     }
 
@@ -87,19 +88,39 @@ final class JsonDeserializer
             if (null === $metadata->setter || false === array_key_exists($name, $data)) {
                 continue;
             }
+            if ($metadata->readonlyNotFilledByConstructor) {
+                if ($this->propertyAccessor->isInitialized($object, $metadata)) {
+                    // PHP refuses to write a readonly property twice, so the constructor's value wins and the input is ignored
+                    continue;
+                }
+                if ($this->usesBatchHandler($metadata)) {
+                    $this->drainBatches([
+                        (string) $metadata->customHandler => [new BatchItem($data[$name], $metadata)],
+                    ]);
+                }
+            }
             $dataValue = $data[$name];
-            $value = $this->handlerResolver
-                ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
-                ->deserialize($dataValue, $metadata)
+            if (null === $dataValue && false === $metadata->isNullable && $objectMetadata->isOptionalConstructorArgument($name)) {
+                // the constructor took the default value instead, and a handler would turn null into 0 or ''
+                continue;
+            }
+            $value = [] !== $metadata->scalarUnionTypes && $this->fitsScalarUnion($dataValue, $metadata)
+                ? $dataValue
+                : $this->handlerResolver
+                    ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
+                    ->deserialize($dataValue, $metadata)
             ;
             if (null === $value && false === $metadata->isNullable) {
                 continue;
             }
 
             try {
-                $metadata->getterSetterStrategy ? $object->{$metadata->setter}($value) : $object->{$metadata->property} = $value;
+                $this->propertyAccessor->setValue($object, $metadata, $value);
             } catch (Throwable $exception) {
-                throw new SerializerException('Unable to deserialize "' . $name . '". Check type.', 0, $exception);
+                throw new SerializerException(
+                    message: sprintf('Unable to deserialize "%s::$%s": %s', $className, $name, $exception->getMessage()),
+                    previous: $exception,
+                );
             }
         }
 
@@ -143,15 +164,30 @@ final class JsonDeserializer
             if (null === $metadata->setter && false === isset($constructorMetadata[$name])) {
                 continue;
             }
-            $handlerClass = $metadata->customHandler;
-            if (null === $handlerClass || false === is_a($handlerClass, BatchDeserializeHandlerInterface::class, true)) {
+            // the null check spares a method call per property, which costs 3 to 5 percent of a deserialization
+            if (null === $metadata->customHandler || false === $this->usesBatchHandler($metadata)) {
+                continue;
+            }
+            if ($metadata->readonlyNotFilledByConstructor && false === isset($constructorMetadata[$name])) {
+                // only arrayToObject() can tell, after the constructor, whether this property takes the input
                 continue;
             }
 
-            $batches[$handlerClass][] = new BatchItem($data[$name], $metadata);
+            $batches[(string) $metadata->customHandler][] = new BatchItem($data[$name], $metadata);
         }
 
         return $batches;
+    }
+
+    private function fitsScalarUnion(mixed $value, Metadata $metadata): bool
+    {
+        return in_array(get_debug_type($value), $metadata->scalarUnionTypes, true);
+    }
+
+    private function usesBatchHandler(Metadata $metadata): bool
+    {
+        return null !== $metadata->customHandler
+            && is_a($metadata->customHandler, BatchDeserializeHandlerInterface::class, true);
     }
 
     /**
@@ -178,31 +214,39 @@ final class JsonDeserializer
     {
         $propMetadata = $objectMetadata->getAll();
         $constructorMetadata = $objectMetadata->getConstructorMetadata();
-        if (empty($constructorMetadata)) {
-            // initialize object without parameters
-            return new $className();
-        }
 
-        // initialize object with parameters
-        $params = [];
+        $arguments = [];
         foreach ($constructorMetadata as $name => $metadata) {
-            /** @var Metadata $metadata */
-            if (false === isset($data[$name], $propMetadata[$name])) {
-                throw new SerializerException(
-                    sprintf(
-                        'Unable to deserialize "%s". Required constructor property "%s" missing in data or serializable properties.',
-                        $className,
-                        $name
-                    )
-                );
+            $isProvided = isset($propMetadata[$name])
+                && array_key_exists($name, $data)
+                && (null !== $data[$name] || $metadata->isNullable);
+            if ($isProvided) {
+                $dataValue = $data[$name];
+                $value = [] !== $metadata->scalarUnionTypes && $this->fitsScalarUnion($dataValue, $metadata)
+                    ? $dataValue
+                    : $this->handlerResolver
+                        ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
+                        ->deserialize($dataValue, $metadata);
+                if (null !== $value || $metadata->isNullable) {
+                    $arguments[(string) $metadata->property] = $value;
+
+                    continue;
+                }
             }
 
-            $dataValue = $data[$name];
-            $params[] = $this->handlerResolver
-                ->getDeserializationHandler($dataValue, $metadata->type, $metadata->customHandler)
-                ->deserialize($dataValue, $metadata);
+            if ($objectMetadata->isOptionalConstructorArgument($name)) {
+                continue;
+            }
+
+            throw new SerializerException(
+                sprintf(
+                    'Unable to deserialize "%s". Required constructor property "%s" missing in data or serializable properties.',
+                    $className,
+                    $name
+                )
+            );
         }
 
-        return new $className(...$params);
+        return new $className(...$arguments);
     }
 }

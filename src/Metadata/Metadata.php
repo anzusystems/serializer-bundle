@@ -11,6 +11,8 @@ final class Metadata
      * @param class-string|string|null $customType
      * @param array<string, class-string>|null $discriminatorMap
      * @param null|array<string, 'ASC'|'DESC'> $orderBy
+     * @param class-string|null $declaringClass
+     * @param list<string> $scalarUnionTypes the types kept as they are in the input, for a union of scalars and array
      */
     public function __construct(
         public string $type,
@@ -24,7 +26,15 @@ final class Metadata
         public ?string $persistedName = null,
         public ?array $discriminatorMap = null,
         public ?array $orderBy = null,
-        public bool $getterSetterStrategy = true,
+        public bool $getterIsMethod = true,
+        public bool $setterIsMethod = true,
+        public ?string $declaringClass = null,
+        public bool $readable = true,
+        public bool $filledByConstructor = false,
+        public bool $readonlyNotFilledByConstructor = false,
+        public bool $readInClassScope = false,
+        public bool $writeInClassScope = false,
+        public array $scalarUnionTypes = [],
     ) {
     }
 }

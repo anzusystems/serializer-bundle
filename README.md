@@ -116,6 +116,69 @@ To be able to (de)serialize objects, the property (or method) of that object mus
     public function getViolations(): Collection
 ```
 
+### Properties
+
+A `#[Serialize]` property is read and written in one of two ways:
+
+- A `private` or `protected` property without hooks uses the public accessors of the serialized class, its own or
+  inherited. A getter (`getName()`, or `isEnabled()` for a `bool`) reads it and a setter (`setName()`) writes it. With a
+  getter and no setter it is not written.
+- Anything else is read and written directly, in the scope of the class that declares it. This covers `public`, `private`
+  and `protected` properties, also the `private` ones of a parent class, asymmetric visibility (`public private(set)`,
+  `public protected(set)`) and property hooks, which run as usual.
+
+PHP attributes are not inherited, so a property that a child class declares again needs its own `#[Serialize]`.
+
+```php
+    // Written from the input, read by everyone, changed by nobody else.
+    #[Serialize]
+    public private(set) string $name = '';
+
+    // The set hook runs on deserialization.
+    #[Serialize]
+    public string $title = '' {
+        set => trim($value);
+    }
+
+    // Virtual, get only: serialized, ignored on input, documented as readOnly.
+    #[Serialize]
+    public string $label {
+        get => strtoupper($this->name);
+    }
+
+    // Virtual, set only: written from the input, left out of the output, documented as writeOnly.
+    #[Serialize]
+    public string $rawName {
+        set(string $value) {
+            $this->name = trim($value);
+        }
+    }
+```
+
+Input that does not fit the type throws a `DeserializationException` that names the property: text into a number, an array
+into a scalar, `null` into a non-nullable array, class, date, UUID or enum. Numeric text, a `bool`, an empty text and `null`
+still convert to a scalar, and a `float` into an `int` is cut. A union of scalars keeps the type of the input, and a `set`
+hook receives what its parameter declares. See *Check what your classes receive from outside* in `UPGRADE-7.0.md`.
+
+Properties promoted by the constructor of the deserialized class are filled by it, so they can be `readonly`. A
+`private` or `protected` promoted property that has a setter is written by the setter once more after the
+constructor. A property promoted by a parent constructor that the child class overrides without promoting it is written
+after the constructor. A `readonly` property that is not promoted gets its value through a constructor parameter of the
+same name and type, where the parameter may also accept `null`, and the constructor must assign it. Without such a parameter it is filled from the input, unless the constructor has already set it or
+it is `private` or `protected` with a getter and no setter: then the input is ignored. A promoted parameter that is missing from the data, or `null` for a non-nullable type, gets its default value;
+a required parameter without a default throws a `SerializerException` that names it. An exception from the constructor
+and the `Error` for a typed property that is not initialized pass through unchanged.
+
+```php
+    public function __construct(
+        #[Serialize]
+        public readonly string $name,
+        #[Serialize]
+        public readonly int $limit = 10,
+    ) {
+    }
+```
+
 ### Built-in handlers
 
 - Auto-resolved handlers based on type:
@@ -355,12 +418,11 @@ It's best to have a look at the `AnzuSystems\SerializerBundle\Handler\Handlers` 
 
 - Iterables with keys will be automatically (de)serialized into an associative array or indexed collection.
 - Currently, only json format is supported.
-- Every property that you want to (de)serialize, must have a public getter and setter.
-    - Setter name example for property $email: `setEmail`
-    - Getter name example for property $email: `getEmail`
-    - Getter name example for boolean properties: `isEnabled`
-- Constructor of an object that you want to (de)serialize cannot have required parameters.
-    - You can also use public static functions to instantiate an object if you want required parameters. For instance:
+- How a property is read and written is described in *Properties* above.
+- An object is created through its public constructor. Each required parameter must be a `#[Serialize]` property that
+  is present in the data.
+    - When your own code needs required parameters that the input does not carry, put them into a public static
+      function instead. For instance:
 
 ```php
 public static function getInstance(Post $decorated): self
