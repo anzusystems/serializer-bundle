@@ -7,6 +7,8 @@ namespace AnzuSystems\SerializerBundle\Tests\Dto;
 use AnzuSystems\SerializerBundle\Attributes\Serialize;
 use AnzuSystems\SerializerBundle\Handler\Handlers\ArrayStringHandler;
 use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleBackedEnum;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleIntBackedEnum;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleUnitEnum;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 
@@ -23,6 +25,12 @@ final class NonScalarTypesDto
 
     #[Serialize]
     public ExampleBackedEnum $enum;
+
+    #[Serialize]
+    public ExampleIntBackedEnum $intEnum;
+
+    #[Serialize]
+    public ExampleUnitEnum $unitEnum;
 
     #[Serialize(handler: ArrayStringHandler::class, type: 'int')]
     public array $ids = [];

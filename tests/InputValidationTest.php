@@ -9,10 +9,19 @@ use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Tests\Dto\MethodNamesDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\NonScalarTypesDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\NullableParameterDto;
+use AnzuSystems\SerializerBundle\Tests\Dto\ReadonlyNullableParameterDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ScalarTypesDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\ScalarUnionDto;
 use AnzuSystems\SerializerBundle\Tests\Dto\WiderSetHookDto;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleBackedEnum;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleIntBackedEnum;
+use AnzuSystems\SerializerBundle\Tests\TestApp\Model\ExampleUnitEnum;
+use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Stringable;
+use Symfony\Component\Uid\MaxUuid;
+use Symfony\Component\Uid\NilUuid;
+use Symfony\Component\Uid\Uuid;
 
 final class InputValidationTest extends AbstractTestCase
 {
@@ -46,6 +55,86 @@ final class InputValidationTest extends AbstractTestCase
         yield 'number to bool' => ['{"bool":0}', 'bool', false];
         yield 'empty string to bool' => ['{"bool":""}', 'bool', false];
         yield 'null to bool' => ['{"bool":null}', 'bool', false];
+        yield 'bool to bool' => ['{"bool":false}', 'bool', false];
+        yield 'one to bool' => ['{"bool":1}', 'bool', true];
+        yield 'yes to bool' => ['{"bool":"yes"}', 'bool', true];
+        yield 'no to bool' => ['{"bool":"no"}', 'bool', false];
+        yield 'on to bool' => ['{"bool":"on"}', 'bool', true];
+        yield 'false to bool' => ['{"bool":"false"}', 'bool', false];
+        yield 'null to float' => ['{"float":null}', 'float', 0.0];
+        yield 'bool to float' => ['{"float":true}', 'float', 1.0];
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testStringableIsConvertedToString(): void
+    {
+        $stringable = new class() implements Stringable {
+            public function __toString(): string
+            {
+                return 'anzu';
+            }
+        };
+
+        self::assertSame('anzu', $this->serializer->fromArray(['string' => $stringable], ScalarTypesDto::class)->string);
+    }
+
+    /**
+     * @param class-string<Uuid> $expectedClass
+     *
+     * @throws SerializerException
+     */
+    #[DataProvider('acceptedUuids')]
+    public function testAcceptedUuid(string $value, string $expectedClass, string $expected): void
+    {
+        $uuid = $this->serializer->fromArray(['uuid' => $value], NonScalarTypesDto::class)->uuid;
+
+        self::assertInstanceOf($expectedClass, $uuid);
+        self::assertSame($expected, $uuid->toRfc4122());
+    }
+
+    public static function acceptedUuids(): iterable
+    {
+        $common = '0192c5e0-7a0b-7c3e-9d11-2f7f7a3b1c11';
+        $nil = '00000000-0000-0000-0000-000000000000';
+        $max = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+
+        yield 'common' => [$common, Uuid::class, $common];
+        yield 'nil' => [$nil, NilUuid::class, $nil];
+        yield 'empty text is nil' => ['', NilUuid::class, $nil];
+        yield 'max in capital letters' => [strtoupper($max), MaxUuid::class, $max];
+        yield 'seed value outside the RFC variant' => ['00000000-0000-0000-0000-000000000001', Uuid::class, '00000000-0000-0000-0000-000000000001'];
+        yield 'repeated digit' => ['11111111-1111-1111-1111-111111111111', Uuid::class, '11111111-1111-1111-1111-111111111111'];
+        yield 'variant c' => ['0192c5e0-7a0b-7c3e-c111-2f7f7a3b1c11', Uuid::class, '0192c5e0-7a0b-7c3e-c111-2f7f7a3b1c11'];
+        yield 'base58' => ['9in6hao2QUaGpwP4TvAESg', Uuid::class, Uuid::fromString('9in6hao2QUaGpwP4TvAESg')->toRfc4122()];
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testAcceptedEnumsAndDate(): void
+    {
+        $dto = $this->serializer->deserialize(
+            '{"enum":"second","intEnum":5,"unitEnum":"Blue","date":"2026-01-02T03:04:05Z"}',
+            NonScalarTypesDto::class,
+        );
+
+        self::assertSame(ExampleBackedEnum::Second, $dto->enum);
+        self::assertSame(ExampleIntBackedEnum::Five, $dto->intEnum);
+        self::assertSame(ExampleUnitEnum::Blue, $dto->unitEnum);
+        self::assertEquals(new DateTimeImmutable('2026-01-02T03:04:05Z'), $dto->date);
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testIntBackedEnumTakesANumericString(): void
+    {
+        self::assertSame(
+            ExampleIntBackedEnum::Five,
+            $this->serializer->deserialize('{"intEnum":"5"}', NonScalarTypesDto::class)->intEnum,
+        );
     }
 
     /**
@@ -81,6 +170,11 @@ final class InputValidationTest extends AbstractTestCase
         yield 'text to uuid' => [NonScalarTypesDto::class, '{"uuid":"abc"}', 'uuid'];
         yield 'array to enum' => [NonScalarTypesDto::class, '{"enum":[1]}', 'enum'];
         yield 'text in a list of int' => [NonScalarTypesDto::class, '{"ids":"1,abc"}', 'ids'];
+        yield 'two to bool' => [ScalarTypesDto::class, '{"bool":2}', 'bool'];
+        yield 'fraction to bool' => [ScalarTypesDto::class, '{"bool":1.5}', 'bool'];
+        yield 'number to a string backed enum' => [NonScalarTypesDto::class, '{"enum":5}', 'enum'];
+        yield 'text to an int backed enum' => [NonScalarTypesDto::class, '{"intEnum":"abc"}', 'intEnum'];
+        yield 'fraction as text to an int backed enum' => [NonScalarTypesDto::class, '{"intEnum":"1.5"}', 'intEnum'];
     }
 
     /**
@@ -104,6 +198,39 @@ final class InputValidationTest extends AbstractTestCase
     {
         yield 'value' => ['{"name":"anzu"}', 'anzu'];
         yield 'null' => ['{"name":null}', null];
+    }
+
+    public function testErrorOfAConstructorParameterNamesTheClass(): void
+    {
+        $this->expectException(DeserializationException::class);
+        $this->expectExceptionMessage(sprintf('Unable to deserialize "%s::$name". Expected string, got array.', NullableParameterDto::class));
+
+        $this->serializer->deserialize('{"name":[1]}', NullableParameterDto::class);
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testReadonlyPropertyTakesItsValueThroughANullableParameter(): void
+    {
+        $dto = $this->serializer->deserialize(
+            '{"at":"2026-01-02T03:04:05Z","name":"anzu"}',
+            ReadonlyNullableParameterDto::class,
+        );
+
+        self::assertEquals(new DateTimeImmutable('2026-01-02T03:04:05Z'), $dto->at);
+        self::assertSame('anzu', $dto->name);
+    }
+
+    /**
+     * @throws SerializerException
+     */
+    public function testReadonlyPropertyKeepsTheConstructorValueWithoutInput(): void
+    {
+        $dto = $this->serializer->deserialize('{"name":null}', ReadonlyNullableParameterDto::class);
+
+        self::assertEquals(new DateTimeImmutable('2020-01-01T00:00:00Z'), $dto->at);
+        self::assertSame('default', $dto->name);
     }
 
     /**

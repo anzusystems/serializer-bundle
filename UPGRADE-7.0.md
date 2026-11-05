@@ -44,11 +44,12 @@ that names the class and the property. 6.x turned it into another value without 
 | Target type | Input | 6.x | 7.0 |
 |---|---|---|---|
 | `int`, `float` | text such as `"abc"` or `"12abc"` | `0` or `12` | exception |
-| `int`, `float`, `bool` | array | `1` or `true` | exception |
+| `int`, `float` | array | `0` or `1` | exception |
+| `bool` | array | `false` | exception |
 | `string` | array, or an object without `__toString()` | `"Array"` or `Error` | exception |
 | `bool` | text such as `"maybe"`, a number other than 0 and 1 | `false` | exception |
 | `array`, a class, a date, a UUID, an enum | `null` when the property is not nullable | `UnhandledMatchError` | exception |
-| a date, a UUID, an enum | a value of the wrong type | `TypeError` | exception |
+| a date, a UUID, an enum | a value of the wrong type, `5` into a string backed enum | `TypeError` | exception |
 | a UUID | text that is not a UUID | `InvalidArgumentException` | exception |
 | a list with `ArrayStringHandler` of `int` or `float` | `"1,abc"` | `[1, 0]` | exception |
 
@@ -59,6 +60,8 @@ These stay valid and give the same result as in 6.x:
 - `string` takes any scalar, `null` (`''`) and an object with `__toString()`.
 - `bool` takes `true`, `false`, `0`, `1`, `"true"`, `"false"`, `"on"`, `"off"`, `"yes"`, `"no"`, an empty text and `null`
   (`false`).
+- A UUID takes every form `Uuid::fromString()` reads, also outside the RFC variant and in base58 or base32. An empty text
+  gives the nil UUID.
 
 Check each class that reads data you do not produce yourself: other services, imports, AI output, old stored JSON. In
 6.x a wrong value passed without notice. In 7.0 the whole deserialization of that object fails. Decide per place whether
@@ -72,8 +75,9 @@ to catch `DeserializationException`, or to widen the type of the property.
   receives `null`. 6.x used the type of the property.
 - A nullable constructor parameter that is not promoted, `?string $name`, accepts a value. 6.x threw
   `Unable to determine deserialization handler`.
+- An int backed enum takes a numeric text, so it can be filled from a query string. 6.x threw a `TypeError`.
 - The name taken from a method drops only a `get` or `is` prefix. 6.x removed any leading letters from `g`, `e`, `t`, `i`
-  and `s`, so `size()` gave `ze` and `title()` gave `tle`. A class that relied on such a name must set `serializedName`.
+  and `s`, so `size()` gave `ze` and `title()` gave `le`. A class that relied on such a name must set `serializedName`.
 - `Unable to deserialize "x". Check type.` from a failed write is now `Unable to deserialize "Class::$x": <reason>`.
 
 ## Other changes
@@ -82,7 +86,7 @@ to catch `DeserializationException`, or to widen the type of the property.
   property can be deserialized. A non-public promoted property with a `setX()` method is the exception: its setter
   still runs after the constructor, as in 6.x.
 - A `readonly` property that is not promoted gets its value through a constructor parameter of the same name and type,
-  and the constructor must assign it. Without such a parameter it is filled from the input, unless the constructor has already set it or it is `private` or
+  where the parameter may also accept `null`, and the constructor must assign it. Without such a parameter it is filled from the input, unless the constructor has already set it or it is `private` or
   `protected` with a getter and no setter: then the input is ignored.
   6.x threw a `SerializerException` for `readonly`, and skipped `private(set) readonly`. In the API documentation it is
   `readOnly` when the class has a constructor without that parameter.
@@ -101,9 +105,10 @@ to catch `DeserializationException`, or to widen the type of the property.
 - A static `#[Serialize]` property throws a `SerializerException` when the metadata is built.
 - `JsonSerializer` and `JsonDeserializer` take an optional third constructor argument, `PropertyAccessor`
   (default `new PropertyAccessor()`). Code that creates them by hand needs no change.
-- `Metadata::$getterSetterStrategy` is replaced by `$getterIsMethod` and `$setterIsMethod`. `$readInClassScope` and
-  `$writeInClassScope` say whether a direct read or write needs the scope of the declaring class. `$scalarUnionTypes` lists
-  the types of a scalar union.
+- `Metadata::$getterSetterStrategy` is replaced by `$getterIsMethod` and `$setterIsMethod`. New fields: `$declaringClass`,
+  `$readable`, `$filledByConstructor`, `$readonlyNotFilledByConstructor`, `$readInClassScope` and `$writeInClassScope`, which
+  say whether a direct read or write needs the scope of the declaring class, and `$scalarUnionTypes` with the types of a
+  scalar union.
 - Two properties with the same data name still end with the last one read, as in 6.x, so an inherited `protected` or
   `public` property wins over a property of the child class. Only a `private` property of a parent gives way to the child.
 - The metadata cache key prefix changed from `anzu_serialz_` to `anzu_serialz_v7_`, so metadata cached by 6.x is not

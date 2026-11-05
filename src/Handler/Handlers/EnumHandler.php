@@ -10,6 +10,7 @@ use AnzuSystems\SerializerBundle\Exception\SerializerException;
 use AnzuSystems\SerializerBundle\Metadata\Metadata;
 use BackedEnum;
 use Symfony\Component\TypeInfo\TypeIdentifier;
+use TypeError;
 use UnitEnum;
 
 final class EnumHandler extends AbstractHandler
@@ -42,7 +43,7 @@ final class EnumHandler extends AbstractHandler
             throw $this->invalidValue($value, $metadata);
         }
         if (is_a($metadata->type, BackedEnum::class, true)) {
-            $enumValue = $metadata->type::tryFrom($value);
+            $enumValue = $this->findBackedCase($value, $metadata);
             if ($enumValue instanceof BackedEnum) {
                 return $enumValue;
             }
@@ -89,5 +90,23 @@ final class EnumHandler extends AbstractHandler
         $description['type'] = TypeIdentifier::STRING->value;
 
         return $description;
+    }
+
+    /**
+     * @throws DeserializationException
+     */
+    private function findBackedCase(int|string $value, Metadata $metadata): ?BackedEnum
+    {
+        try {
+            return $metadata->type::tryFrom($value);
+        } catch (TypeError) {
+            // tryFrom() takes only its backing type under strict types, and a query string carries only text
+            $intValue = is_string($value) ? filter_var($value, FILTER_VALIDATE_INT) : false;
+            if (false === $intValue) {
+                throw $this->invalidValue($value, $metadata);
+            }
+
+            return $metadata->type::tryFrom($intValue);
+        }
     }
 }

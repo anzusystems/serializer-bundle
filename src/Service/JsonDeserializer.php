@@ -88,7 +88,7 @@ final class JsonDeserializer
             if (null === $metadata->setter || false === array_key_exists($name, $data)) {
                 continue;
             }
-            if ($metadata->constructorReadonly) {
+            if ($metadata->readonlyNotFilledByConstructor) {
                 if ($this->propertyAccessor->isInitialized($object, $metadata)) {
                     // PHP refuses to write a readonly property twice, so the constructor's value wins and the input is ignored
                     continue;
@@ -168,7 +168,7 @@ final class JsonDeserializer
             if (null === $metadata->customHandler || false === $this->usesBatchHandler($metadata)) {
                 continue;
             }
-            if ($metadata->constructorReadonly && false === isset($constructorMetadata[$name])) {
+            if ($metadata->readonlyNotFilledByConstructor && false === isset($constructorMetadata[$name])) {
                 // only arrayToObject() can tell, after the constructor, whether this property takes the input
                 continue;
             }

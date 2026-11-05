@@ -31,7 +31,7 @@ final class Metadata
         public ?string $declaringClass = null,
         public bool $readable = true,
         public bool $filledByConstructor = false,
-        public bool $constructorReadonly = false,
+        public bool $readonlyNotFilledByConstructor = false,
         public bool $readInClassScope = false,
         public bool $writeInClassScope = false,
         public array $scalarUnionTypes = [],

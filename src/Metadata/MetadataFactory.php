@@ -114,6 +114,7 @@ final readonly class MetadataFactory
                 $attribute->persistedName,
                 $attribute->discriminatorMap,
                 orderBy: self::resolveOrderBy($attribute),
+                declaringClass: $reflection->getName(),
                 scalarUnionTypes: self::resolveScalarUnionTypes($parameter->getType(), $attribute),
             );
         }
@@ -254,7 +255,7 @@ final readonly class MetadataFactory
                 ->getName(),
             readable: null !== $getter || $this->isPropertyReadable($property),
             filledByConstructor: $filledByConstructor,
-            constructorReadonly: $property->isReadOnly() && false === $filledByConstructor && null !== $reflection->getConstructor(),
+            readonlyNotFilledByConstructor: $property->isReadOnly() && false === $filledByConstructor && null !== $reflection->getConstructor(),
             readInClassScope: false === $property->isPublic(),
             writeInClassScope: false === $property->isPublic() || $property->isPrivateSet() || $property->isProtectedSet(),
             scalarUnionTypes: self::resolveScalarUnionTypes($propertyType, $attribute),
@@ -300,7 +301,7 @@ final readonly class MetadataFactory
      * ReflectionProperty::isPromoted() names the constructor that declares the property, which a child class may have
      * overridden, so only the constructor of the deserialized class counts. A private property promoted by a parent is
      * not the child's property of the same name. A readonly property cannot be written after the constructor, so a
-     * parameter of its name and type takes the value.
+     * parameter of its name and type takes the value, and the parameter may accept null where the property does not.
      */
     private function isFilledByConstructor(ReflectionProperty $property, ReflectionClass $reflection): bool
     {
@@ -314,7 +315,7 @@ final readonly class MetadataFactory
                 continue;
             }
             if (false === $parameter->isPromoted()) {
-                return $property->isReadOnly() && (string) $parameter->getType() === (string) $property->getType();
+                return $property->isReadOnly() && self::typeWithoutNull($parameter->getType()) === self::typeWithoutNull($property->getType());
             }
 
             $promotingClass = $constructor->getDeclaringClass();
@@ -359,6 +360,11 @@ final readonly class MetadataFactory
         }
 
         return $attribute->type;
+    }
+
+    private static function typeWithoutNull(?ReflectionType $type): string
+    {
+        return str_replace('|null', '', ltrim((string) $type, '?'));
     }
 
     private static function resolveTypeName(?ReflectionType $type): string
