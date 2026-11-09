@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace AnzuSystems\SerializerBundle\Metadata;
 
 use AnzuSystems\SerializerBundle\Exception\SerializerException;
-use Doctrine\Common\Util\ClassUtils;
 use Doctrine\Persistence\Proxy;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Cache\InvalidArgumentException;
@@ -36,8 +35,9 @@ final class MetadataRegistry
      */
     public function get(string $className): ClassMetadata
     {
+        // A generated Doctrine proxy extends the entity class; native lazy objects have no proxy class.
         if (is_a($className, Proxy::class, true)) {
-            $className = ClassUtils::getRealClass($className);
+            $className = get_parent_class($className) ?: $className;
         }
         if (false === isset($this->metadata[$className])) {
             try {
